@@ -21,4 +21,4 @@
   
   
   
-  https://github.com/yanjiu-xyz/DevDataPager/blob/master/DevDataPager.png
+  ![image](https://github.com/yanjiu-xyz/DevDataPager/blob/master/DevDataPager.png)
