@@ -18,3 +18,7 @@
   助本项目。                                                     
   
   注：部分代码引用了 Developer Express 的相关单元，如有侵权可联系移除
+  
+  
+  
+  https://github.com/yanjiu-xyz/DevDataPager/blob/master/DevDataPager.png
