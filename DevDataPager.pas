@@ -1,18 +1,20 @@
-﻿{ 
-  Delphi分页控件       
-  
-  版权所有 (c) 研究  QQ:71051699    
+﻿{
+  Delphi分页控件
+
+  版权所有 (c) 研究  QQ:71051699
+
   (1)、使用许可
   您可以自由复制、分发、修改本源码，但您的修改应该反馈给作者，并允许作者在必要时，
   合并到本项目中以供使用，合并后的源码同样遵循本版权声明限制。
   您的产品的关于中，应包含以下的版本声明:
   本产品使用的分页控件(TDevDataPager)版权归作者所有。
+
   (2)、技术支持
-  有技术问题，您可以加QQ群30311217共同探讨。                                            
+  有技术问题，您可以加QQ群30311217共同探讨。
+
   (3)、赞助
-  您可以自由使用本源码而不需要支付任何费用。如果您觉得本源码对您有帮助，您可以赞
-  助本项目。                                                     
-  
+  您可以自由使用本源码而不需要支付任何费用。如果您觉得本源码对您有帮助，您可以赞助本项目。
+
   注：部分代码引用了 Developer Express 的相关单元，如有侵权可联系移除
 }
 
@@ -149,7 +151,7 @@ type
     FOwner: TComponent;
     FDefaultColor: TColor;
     FActiveColor: TColor;
-    FOverColor: TColor;
+    FHoverColor: TColor;
     FDownColor: TColor;
     FFrameWidth: Integer;
     FFrameColor: TColor;
@@ -162,7 +164,7 @@ type
     procedure SetActiveColor(const Value: TColor);
     procedure SetDefaultColor(const Value: TColor);
     procedure SetDownColor(const Value: TColor);
-    procedure SetOverColor(const Value: TColor);
+    procedure SetHoverColor(const Value: TColor);
     procedure SetFrameColor(const Value: TColor);
     procedure SetFrameWidth(const Value: Integer);
     procedure SetFont(const Value: TFont);
@@ -181,7 +183,7 @@ type
 
     property DefaultColor: TColor read FDefaultColor write SetDefaultColor;
     property ActiveColor: TColor read FActiveColor write SetActiveColor;
-    property OverColor: TColor read FOverColor write SetOverColor;
+    property HoverColor: TColor read FHoverColor write SetHoverColor;
     property DownColor: TColor read FDownColor write SetDownColor;
     property FrameColor: TColor read FFrameColor write SetFrameColor;
     property ArrowColor: TColor read FArrowColor write SetArrowColor;
@@ -271,7 +273,7 @@ begin
   begin
     FDefaultColor := TPageSetting(Source).FDefaultColor;
     FActiveColor := TPageSetting(Source).FActiveColor;
-    FOverColor := TPageSetting(Source).FOverColor;
+    FHoverColor := TPageSetting(Source).FHoverColor;
     FDownColor := TPageSetting(Source).FDownColor;
     FFrameColor := TPageSetting(Source).FFrameColor;
     FArrowColor := TPageSetting(Source).FArrowColor;
@@ -295,7 +297,7 @@ begin
 
   FDefaultColor := clWhite;
   FActiveColor := clNavy;
-  FOverColor := $00F1F1F1;
+  FHoverColor := $00F1F1F1;
   FDownColor := $00F1F1F1;
   FFrameColor := clSilver;
   FArrowColor := clBlack;
@@ -412,11 +414,11 @@ begin
   end;
 end;
 
-procedure TPageSetting.SetOverColor(const Value: TColor);
+procedure TPageSetting.SetHoverColor(const Value: TColor);
 begin
-  if Value <> FOverColor then
+  if Value <> FHoverColor then
   begin
-    FOverColor := Value;
+    FHoverColor := Value;
     if FOwner is TCustomDevDataPager then
       TCustomDevDataPager(FOwner).Invalidate;
   end;
@@ -1054,7 +1056,7 @@ const
       else
       begin
         if FOverElement = AElementInfo then
-          ABrushColor := FPageSetting.OverColor
+          ABrushColor := FPageSetting.HoverColor
         else
           ABrushColor := FPageSetting.DefaultColor;
       end;
@@ -1123,7 +1125,7 @@ const
     begin
       AFrameColor := FPageSetting.FrameColor;
       if FOverElement = AElementInfo then
-        ABrushColor := FPageSetting.OverColor
+        ABrushColor := FPageSetting.HoverColor
       else
         ABrushColor := FPageSetting.DefaultColor;
     end;
@@ -1467,3 +1469,5 @@ begin
 end;
 
 end.
+
+
