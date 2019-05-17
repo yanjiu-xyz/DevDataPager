@@ -16,18 +16,38 @@
   您可以自由使用本源码而不需要支付任何费用。如果您觉得本源码对您有帮助，您可以赞助本项目。
 
   注：部分代码引用了 Developer Express 的相关单元，如有侵权可联系移除
+
+}
+
+{
+  beta 版本
+  初始版本提交
+  ===================
+
+  + 增加 Dev依赖编译指令，默认为关闭状态,在Defs.inc文件取消注释即可
+  + 增加 字体及颜色定义属性
+  * 修正 cpu占用过高的问题
+  * 调整了部分属性名称
+  ===================
+
 }
 
 unit DevDataPager;
 
+{$I Defs.inc}
+
 interface
 
 uses
+
   Windows, Messages, SysUtils, Classes, Controls, StdCtrls, Math,
-  Forms, Graphics, ClipBrd, ExtCtrls, Dialogs, TypInfo, Vcl.Menus,
-  Types, UITypes, cxGraphics, dxCoreGraphics,
-  cxLookAndFeelPainters, dxGDIPlusClasses, cxLookAndFeels, dxSkinsLookAndFeelPainter,
-  cxControls;
+  Graphics, Vcl.Menus, Vcl.Themes, Vcl.Forms,
+  Types, UITypes
+{$IFDEF DevGDIPlus}
+    , cxGraphics, dxCoreGraphics, cxLookAndFeelPainters, dxGDIPlusClasses,
+  cxLookAndFeels, dxSkinsLookAndFeelPainter, cxControls, cxGeometry, cxDWMApi
+{$ENDIF}
+    ;
 
 const
   PageNumSeparator = '...';
@@ -44,7 +64,7 @@ type
 
   TControlType = (ctLabelRecordCount, ctPriorPage, ctNextPage, ctGoPage, ctGoPageOk, ctGoPageLabelL, ctGoPageLabelR,
     ctFirstPage, ctLastPage, ctPageNum, ctEllipsis, ctPageSize);
-  TPageSetting = class;
+  TDataPagerSetting = class;
   TPageNumEdit = class;
 
   PElementInfo = ^TElementInfo;
@@ -59,9 +79,37 @@ type
     ControlType: TControlType;
   end;
 
-  TCustomDevDataPager = class(TcxControl, IdxSkinSupport, IcxLookAndFeelContainer)
+{$IFDEF DevGDIPlus}
+
+  TCanvas = TcxCanvas;
+{$ELSE}
+  TCanvas = Graphics.TCanvas;
+  TWinControlAccess = class(TWinControl);
+
+  TCustomControlEx = class(TCustomControl)
   private
-    FPageSetting: TPageSetting;
+    FPainting: Boolean;
+    procedure WMSize(var Message: TWMSize); message WM_SIZE;
+    procedure WMPaint(var Message: TWMPaint); message WM_PAINT;
+  protected
+    procedure PaintChanged;
+    procedure Paint; override;
+    procedure Resize; override;
+    procedure DrawControl(ACanvas: TCanvas); virtual;
+  public
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
+  end;
+
+{$ENDIF}
+{$IFDEF DevGDIPlus}
+
+  TCustomDevDataPager = class(TcxControl, IdxSkinSupport, IcxLookAndFeelContainer)
+{$ELSE}
+  TCustomDevDataPager = class(TCustomControlEx)
+{$ENDIF}
+  private
+    FDataPagerSetting: TDataPagerSetting;
     FPageSizePopup: TPopupMenu;
     FControlList: TList;
     FPageNum: Integer;
@@ -69,57 +117,59 @@ type
     FRecordCount: Integer;
     FOnPageNumEvent: TNotifyEvent;
     FPageNumEdit: TPageNumEdit;
-
-    FOverElement, FDownElement: PElementInfo;
+    FHoverElement, FDownElement, FCurrElement: PElementInfo;
     FOnNextPage: TOnPageNumEvent;
     FOnPriorPage: TOnPageNumEvent;
     FOnGoPage: TOnPageNumEvent;
     FOnPageSize: TOnPageSizeEvent;
+{$IFDEF DevGDIPlus}
     FLookAndFeel: TcxLookAndFeel;
+{$ENDIF}
     procedure SetPageNum(const Value: Integer);
     procedure SetPageSize(const Value: Integer);
     procedure SetRecordCount(const Value: Integer);
 
-    procedure WMMouseMove(var Message: TWMMouseMove); message WM_MOUSEMOVE;
     procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
+{$IFDEF DevGDIPlus}
     procedure SetLookAndFeel(const Value: TcxLookAndFeel);
     function GetPainter: TcxCustomLookAndFeelPainter;
     function IsUseSkin: Boolean;
+{$ENDIF}
   protected
     FOldPageSize: Integer;
     procedure Paint; override;
-
+    procedure DrawControl(ACanvas: TCanvas); {$IFDEF DevGDIPlus} {$ELSE} override; {$ENDIF}
     procedure Prepare;
-
     procedure ControlListClear;
     procedure AddElement(AControlType: TControlType; ACaption: string; AEnabled: Boolean; AValue: Integer = -1);
     function GetElementWidth: Integer;
-    procedure DrawDataPager;
-    procedure DrawPageNums(ACanvas: TcxCanvas; AGraphics: TdxGPGraphics);
-    procedure DrawControl(ACanvas: TcxCanvas; AGraphics: TdxGPGraphics; AElementInfo: PElementInfo);
-
-    procedure DrawButtonArrow(ACanvas: TcxCanvas; const R: TRect; AColor: TColor); virtual;
-    procedure DrawDropDownButton(ACanvas: TcxCanvas; R: TRect; AFrameColor: TColor; ABrushColor: TColor);
+    procedure DrawPageNums(ACanvas: TCanvas {$IFDEF DevGDIPlus}; AGraphics: TdxGPGraphics{$ENDIF});
+    procedure DrawInternalControl(ACanvas: TCanvas{$IFDEF DevGDIPlus}; AGraphics: TdxGPGraphics{$ENDIF};
+      AElementInfo: PElementInfo);
+    procedure DrawButtonArrow(ACanvas: TCanvas; const R: TRect; AColor: TColor); virtual;
+    procedure DrawDropDownButton(ACanvas: TCanvas; R: TRect; AFrameColor: TColor; ABrushColor: TColor);
 
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
+    procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure Notification(AComponent: TComponent; Operation: TOperation); override;
     procedure DoPageSizeChange(Sender: TObject);
     procedure OnPageNumChange(Sender: TObject);
-
     procedure ChangeButtonOK;
-
     procedure DoPageElementEvent(AElementInfo: PElementInfo);
     procedure Resize; override;
+
+{$IFDEF DevGDIPlus}
     // IcxLookAndFeelContainer
     function GetLookAndFeel: TcxLookAndFeel;
-
     procedure LookAndFeelChanged(Sender: TcxLookAndFeel; AChangedValues: TcxLookAndFeelValues); override;
 {$IFDEF DELPHIBERLIN}
     procedure ChangeScale(M, D: Integer; isDpiChange: Boolean); override;
 {$ELSE}
     procedure ChangeScale(M, D: Integer); override;
+{$ENDIF}
+    procedure PaintChanged;
 {$ENDIF}
     function CalcPageCount: Integer;
     procedure AdjustPageNum;
@@ -128,14 +178,16 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
 
-    procedure Invalidate; override;
+    function PageCount: Integer;
 
+{$IFDEF DevGDIPlus}
     property Painter: TcxCustomLookAndFeelPainter read GetPainter;
-
+    property LookAndFeel: TcxLookAndFeel read FLookAndFeel write SetLookAndFeel;
+{$ENDIF}
     property PageNum: Integer read FPageNum write SetPageNum default 1;
     property PageSize: Integer read FPageSize write SetPageSize default 50;
     property RecordCount: Integer read FRecordCount write SetRecordCount default 0;
-    property Setting: TPageSetting read FPageSetting write FPageSetting;
+    property Setting: TDataPagerSetting read FDataPagerSetting write FDataPagerSetting;
 
     property OnPageNum: TNotifyEvent read FOnPageNumEvent write FOnPageNumEvent;
     property OnGoPage: TOnPageNumEvent read FOnGoPage write FOnGoPage;
@@ -143,10 +195,9 @@ type
     property OnNextPage: TOnPageNumEvent read FOnNextPage write FOnNextPage;
     property OnPageSize: TOnPageSizeEvent read FOnPageSize write FOnPageSize;
 
-    property LookAndFeel: TcxLookAndFeel read FLookAndFeel write SetLookAndFeel;
   end;
 
-  TPageSetting = class(TPersistent)
+  TDataPagerSetting = class(TPersistent)
   private
     FOwner: TComponent;
     FDefaultColor: TColor;
@@ -157,10 +208,13 @@ type
     FFrameColor: TColor;
     FFont: TFont;
     FArrowColor: TColor;
-    FControlHeight: Integer;
+    FElementHeight: Integer;
     FPageSizeSet: String;
     FShowOKButton: Boolean;
     FBackgroundColor: TColor;
+    FDisabledFont: TFont;
+    FActiveFont: TFont;
+    FLabelFont: TFont;
     procedure SetActiveColor(const Value: TColor);
     procedure SetDefaultColor(const Value: TColor);
     procedure SetDownColor(const Value: TColor);
@@ -169,12 +223,14 @@ type
     procedure SetFrameWidth(const Value: Integer);
     procedure SetFont(const Value: TFont);
     procedure SetArrowColor(const Value: TColor);
-    procedure SetControlHeight(const Value: Integer);
+    procedure SetElementHeight(const Value: Integer);
     procedure SetPageSizeSet(const Value: String);
     procedure SetShowOKButton(const Value: Boolean);
     procedure SetBackgroundColor(const Value: TColor);
-
     procedure DoChange(Sender: TObject);
+    procedure SetDisabledFont(const Value: TFont);
+    procedure SetActiveFont(const Value: TFont);
+    procedure SetLabelFont(const Value: TFont);
   public
     constructor Create(AOwner: TComponent);
     destructor Destroy; override;
@@ -190,11 +246,14 @@ type
     property BackgroundColor: TColor read FBackgroundColor write SetBackgroundColor;
 
     property PageSizeSet: String read FPageSizeSet write SetPageSizeSet;
-    property ControlHeight: Integer read FControlHeight write SetControlHeight default 25;
+    property ElementHeight: Integer read FElementHeight write SetElementHeight default 25;
     property FrameWidth: Integer read FFrameWidth write SetFrameWidth default 1;
+    property DisabledFont: TFont read FDisabledFont write SetDisabledFont;
     property Font: TFont read FFont write SetFont;
+    property ActiveFont: TFont read FActiveFont write SetActiveFont;
+    property LabelFont: TFont read FLabelFont write SetLabelFont;
 
-    property ShowOKButton: Boolean read FShowOKButton write SetShowOKButton default True;
+    property ShowOKButton: Boolean read FShowOKButton write SetShowOKButton default true;
   end;
 
   TPageNumEdit = class(TCustomEdit)
@@ -208,7 +267,6 @@ type
   protected
     procedure CreateParams(var Params: TCreateParams); override;
     procedure OnPageNumKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-    procedure WMNCPAINT(var msg: TWMNCPaint); message WM_NCPAINT;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -222,7 +280,10 @@ type
     property Align;
     property Anchors;
     property Enabled;
+    property DoubleBuffered;
+{$IFDEF DevGDIPlus}
     property LookAndFeel;
+{$ENDIF}
     property PopupMenu;
     property TabOrder;
     property TabStop;
@@ -256,6 +317,17 @@ begin
   RegisterComponents('DataPager', [TDevDataPager]);
 end;
 
+function GetScreenClient(Control: TControl): TPoint;
+var
+  p: TPoint;
+begin
+  p := Control.ClientOrigin;
+  ScreenToClient(Control.Parent.Handle, p);
+  Result := p;
+end;
+
+{$IFDEF DevGDIPlus}
+
 function GetDataPagerPainter(ALookAndFeel: TcxLookAndFeel): TcxCustomLookAndFeelPainter;
 begin
   Result := ALookAndFeel.Painter;
@@ -264,36 +336,146 @@ begin
     Result := cxLookAndFeelPaintersManager.GetPainter(lfsSkin);
   end;
 end;
+{$ELSE}
+{ TCustomControlEx }
 
-{ TPageSetting }
-
-procedure TPageSetting.Assign(Source: TPersistent);
+procedure TCustomControlEx.PaintChanged;
 begin
-  if Source is TPageSetting then
+  FPainting := true;
+  Invalidate;
+end;
+
+constructor TCustomControlEx.Create(AOwner: TComponent);
+begin
+  inherited;
+  FPainting := true;
+end;
+
+destructor TCustomControlEx.Destroy;
+begin
+
+  inherited;
+end;
+
+procedure TCustomControlEx.DrawControl(ACanvas: TCanvas);
+begin
+
+end;
+
+procedure TCustomControlEx.Paint;
+begin
+  if (csDesigning in ComponentState) then
+    FPainting := true;
+  if ((Self.Width > 1) and (Self.Height > 1)) then
   begin
-    FDefaultColor := TPageSetting(Source).FDefaultColor;
-    FActiveColor := TPageSetting(Source).FActiveColor;
-    FHoverColor := TPageSetting(Source).FHoverColor;
-    FDownColor := TPageSetting(Source).FDownColor;
-    FFrameColor := TPageSetting(Source).FFrameColor;
-    FArrowColor := TPageSetting(Source).FArrowColor;
-    FPageSizeSet := TPageSetting(Source).FPageSizeSet;
-
-    FFrameWidth := TPageSetting(Source).FFrameWidth;
-
-    FFont.Assign(TPageSetting(Source).FFont);
+    if FPainting then
+    begin
+      FPainting := False;
+      DrawControl(Canvas);
+    end;
   end;
 end;
 
-constructor TPageSetting.Create(AOwner: TComponent);
+procedure TCustomControlEx.Resize;
+begin
+  inherited;
+  PaintChanged;
+end;
+
+procedure TCustomControlEx.WMPaint(var Message: TWMPaint);
+var
+  DC, MemDC: HDC;
+  MemBitmap, OldBitmap: hBitmap;
+  PS: TPaintStruct;
+begin
+  if not FDoubleBuffered or (Message.DC <> 0) then
+  begin
+    if not(csCustomPaint in ControlState) and (ControlCount = 0) then
+    begin
+      inherited;
+    end
+    else
+    begin
+      PaintHandler(Message);
+    end;
+  end
+  else
+  begin
+    DC := GetDC(0);
+    MemBitmap := CreateCompatibleBitmap(DC, ClientRect.Right, ClientRect.Bottom);
+    ReleaseDC(0, DC);
+    MemDC := CreateCompatibleDC(0);
+    OldBitmap := SelectObject(MemDC, MemBitmap);
+    try
+      DC := BeginPaint(Handle, PS);
+      Perform(WM_ERASEBKGND, MemDC, MemDC); // 发送消息清空背景
+      Message.DC := MemDC;
+      WMPaint(Message);
+      Message.DC := 0;
+      BitBlt(DC, 0, 0, ClientRect.Right, ClientRect.Bottom, MemDC, 0, 0, SRCCOPY);
+      EndPaint(Handle, PS);
+    finally
+      SelectObject(MemDC, OldBitmap);
+      DeleteDC(MemDC);
+      DeleteObject(MemBitmap);
+    end;
+  end;
+end;
+
+procedure TCustomControlEx.WMSize(var Message: TWMSize);
+begin
+  inherited;
+  Invalidate;
+end;
+
+{$ENDIF}
+{ TDataPagerSetting }
+
+procedure TDataPagerSetting.Assign(Source: TPersistent);
+begin
+  if Source is TDataPagerSetting then
+  begin
+    FDefaultColor := TDataPagerSetting(Source).FDefaultColor;
+    FActiveColor := TDataPagerSetting(Source).FActiveColor;
+    FHoverColor := TDataPagerSetting(Source).FHoverColor;
+    FDownColor := TDataPagerSetting(Source).FDownColor;
+    FFrameColor := TDataPagerSetting(Source).FFrameColor;
+    FArrowColor := TDataPagerSetting(Source).FArrowColor;
+    FPageSizeSet := TDataPagerSetting(Source).FPageSizeSet;
+    FFrameWidth := TDataPagerSetting(Source).FFrameWidth;
+    FFont.Assign(TDataPagerSetting(Source).FFont);
+    FDisabledFont.Assign(TDataPagerSetting(Source).FDisabledFont);
+    FLabelFont.Assign(TDataPagerSetting(Source).FLabelFont);
+  end;
+end;
+
+constructor TDataPagerSetting.Create(AOwner: TComponent);
 begin
   inherited Create;
+  FOwner := AOwner;
+
+  FActiveFont := TFont.Create;
+  FActiveFont.Size := 9;
+  FActiveFont.Color := clWhite;
+  FActiveFont.Name := 'Tahoma';
+  FActiveFont.OnChange := DoChange;
   FFont := TFont.Create;
   FFont.Size := 9;
   FFont.Color := clBlack;
   FFont.Name := 'Tahoma';
   FFont.OnChange := DoChange;
-  FOwner := AOwner;
+
+  FDisabledFont := TFont.Create;
+  FDisabledFont.Size := 9;
+  FDisabledFont.Color := clGray;
+  FDisabledFont.Name := 'Tahoma';
+  FDisabledFont.OnChange := DoChange;
+
+  FLabelFont := TFont.Create;
+  FLabelFont.Size := 9;
+  FLabelFont.Color := clBlack;
+  FLabelFont.Name := 'Tahoma';
+  FLabelFont.OnChange := DoChange;
 
   FDefaultColor := clWhite;
   FActiveColor := clNavy;
@@ -303,128 +485,146 @@ begin
   FArrowColor := clBlack;
   FBackgroundColor := clWhite;
   FFrameWidth := 1;
-  FControlHeight := 25;
-  FShowOKButton := True;
+  FElementHeight := 25;
+  FShowOKButton := true;
   FPageSizeSet := '10,20,30,40,50,100,150';
 end;
 
-destructor TPageSetting.Destroy;
+destructor TDataPagerSetting.Destroy;
 begin
   FFont.Free;
+  FDisabledFont.Free;
+  FActiveFont.Free;
+  FLabelFont.Free;
   inherited Destroy;
 end;
 
-procedure TPageSetting.DoChange(Sender: TObject);
+procedure TDataPagerSetting.DoChange(Sender: TObject);
 begin
   if FOwner is TCustomDevDataPager then
-    TCustomDevDataPager(FOwner).Invalidate;
+    TCustomDevDataPager(FOwner).PaintChanged;
 end;
 
-procedure TPageSetting.SetActiveColor(const Value: TColor);
+procedure TDataPagerSetting.SetActiveColor(const Value: TColor);
 begin
   if Value <> FActiveColor then
   begin
     FActiveColor := Value;
     if FOwner is TCustomDevDataPager then
-      TCustomDevDataPager(FOwner).Invalidate;
+      TCustomDevDataPager(FOwner).PaintChanged;
   end;
 end;
 
-procedure TPageSetting.SetArrowColor(const Value: TColor);
+procedure TDataPagerSetting.SetActiveFont(const Value: TFont);
+begin
+  FActiveFont.Assign(Value);
+end;
+
+procedure TDataPagerSetting.SetArrowColor(const Value: TColor);
 begin
   if Value <> FArrowColor then
   begin
     FArrowColor := Value;
     if FOwner is TCustomDevDataPager then
-      TCustomDevDataPager(FOwner).Invalidate;
+      TCustomDevDataPager(FOwner).PaintChanged;
   end;
 end;
 
-procedure TPageSetting.SetBackgroundColor(const Value: TColor);
+procedure TDataPagerSetting.SetBackgroundColor(const Value: TColor);
 begin
   if Value <> FBackgroundColor then
   begin
-    FControlHeight := Value;
+    FElementHeight := Value;
     if FOwner is TCustomDevDataPager then
     begin
       TCustomDevDataPager(FOwner).Prepare;
-      TCustomDevDataPager(FOwner).Invalidate;
+      TCustomDevDataPager(FOwner).PaintChanged;
     end;
   end;
 end;
 
-procedure TPageSetting.SetControlHeight(const Value: Integer);
+procedure TDataPagerSetting.SetElementHeight(const Value: Integer);
 begin
-  if Value <> FControlHeight then
+  if Value <> FElementHeight then
   begin
-    FControlHeight := Value;
+    FElementHeight := Value;
     if FOwner is TCustomDevDataPager then
     begin
       TCustomDevDataPager(FOwner).Prepare;
-      TCustomDevDataPager(FOwner).Invalidate;
+      TCustomDevDataPager(FOwner).PaintChanged;
     end;
   end;
 end;
 
-procedure TPageSetting.SetDefaultColor(const Value: TColor);
+procedure TDataPagerSetting.SetDefaultColor(const Value: TColor);
 begin
   if Value <> FDefaultColor then
   begin
     FDefaultColor := Value;
     if FOwner is TCustomDevDataPager then
-      TCustomDevDataPager(FOwner).Invalidate;
+      TCustomDevDataPager(FOwner).PaintChanged;
   end;
 end;
 
-procedure TPageSetting.SetDownColor(const Value: TColor);
+procedure TDataPagerSetting.SetDisabledFont(const Value: TFont);
+begin
+  FDisabledFont.Assign(Value);
+end;
+
+procedure TDataPagerSetting.SetDownColor(const Value: TColor);
 begin
   if Value <> FDownColor then
   begin
     FDownColor := Value;
     if FOwner is TCustomDevDataPager then
-      TCustomDevDataPager(FOwner).Invalidate;
+      TCustomDevDataPager(FOwner).PaintChanged;
   end;
 end;
 
-procedure TPageSetting.SetFont(const Value: TFont);
+procedure TDataPagerSetting.SetFont(const Value: TFont);
 begin
   FFont.Assign(Value);
 end;
 
-procedure TPageSetting.SetFrameColor(const Value: TColor);
+procedure TDataPagerSetting.SetFrameColor(const Value: TColor);
 begin
   if Value <> FFrameColor then
   begin
     FFrameColor := Value;
     if FOwner is TCustomDevDataPager then
     begin
-      TCustomDevDataPager(FOwner).Invalidate;
       TCustomDevDataPager(FOwner).FPageNumEdit.FrameColor := FFrameColor;
+      TCustomDevDataPager(FOwner).PaintChanged;
     end;
   end;
 end;
 
-procedure TPageSetting.SetFrameWidth(const Value: Integer);
+procedure TDataPagerSetting.SetFrameWidth(const Value: Integer);
 begin
   if Value <> FFrameWidth then
   begin
     FFrameWidth := Value;
     if FOwner is TCustomDevDataPager then
-      TCustomDevDataPager(FOwner).Invalidate;
+      TCustomDevDataPager(FOwner).PaintChanged;
   end;
 end;
 
-procedure TPageSetting.SetHoverColor(const Value: TColor);
+procedure TDataPagerSetting.SetHoverColor(const Value: TColor);
 begin
   if Value <> FHoverColor then
   begin
     FHoverColor := Value;
     if FOwner is TCustomDevDataPager then
-      TCustomDevDataPager(FOwner).Invalidate;
+      TCustomDevDataPager(FOwner).PaintChanged;
   end;
 end;
 
-procedure TPageSetting.SetPageSizeSet(const Value: String);
+procedure TDataPagerSetting.SetLabelFont(const Value: TFont);
+begin
+  FLabelFont.Assign(Value);
+end;
+
+procedure TDataPagerSetting.SetPageSizeSet(const Value: String);
 begin
   if Value <> FPageSizeSet then
   begin
@@ -432,12 +632,12 @@ begin
     if FOwner is TCustomDevDataPager then
     begin
       // TCustomDevDataPager(FOwner).Prepare;
-      TCustomDevDataPager(FOwner).Invalidate;
+      TCustomDevDataPager(FOwner).PaintChanged;
     end;
   end;
 end;
 
-procedure TPageSetting.SetShowOKButton(const Value: Boolean);
+procedure TDataPagerSetting.SetShowOKButton(const Value: Boolean);
 begin
   if Value <> FShowOKButton then
   begin
@@ -445,7 +645,7 @@ begin
     if FOwner is TCustomDevDataPager then
     begin
       TCustomDevDataPager(FOwner).Prepare;
-      TCustomDevDataPager(FOwner).Invalidate;
+      TCustomDevDataPager(FOwner).PaintChanged;
     end;
   end;
 end;
@@ -460,9 +660,12 @@ var
   AElementInfo: PElementInfo;
   ARect: TRect;
 begin
-  Canvas.Font.Assign(FPageSetting.Font);
+  if FDataPagerSetting = nil then
+    exit;
+
+  Canvas.Font.Assign(FDataPagerSetting.Font);
   ALeft := GetElementWidth;
-  AHeight := FPageSetting.ControlHeight;
+  AHeight := FDataPagerSetting.ElementHeight;
 
   ARect.Left := ALeft;
   ARect.Top := (Height - AHeight) div 2;
@@ -477,7 +680,7 @@ begin
   case AControlType of
     ctLabelRecordCount:
       begin
-        AElementInfo^.OffSet := 4;
+        AElementInfo^.OffSet := 10;
         ARect.Left := ARect.Left + AElementInfo^.OffSet;
         if FRecordCount = 0 then
           AWidth := RecordCountWidth
@@ -488,12 +691,11 @@ begin
       begin
         AElementInfo^.OffSet := 4;
         ARect.Left := ARect.Left + AElementInfo^.OffSet;
-
       end;
     ctGoPage:
       begin
         AElementInfo^.OffSet := 0;
-        ARect.Top := ((Height - AHeight) + (FPageSetting.ControlHeight - GoPageHeight)) div 2;
+        ARect.Top := ((Height - AHeight) + (FDataPagerSetting.ElementHeight - GoPageHeight)) div 2;
         ARect.Height := GoPageHeight;
         ARect.Left := ARect.Left + AElementInfo^.OffSet;
         AWidth := GoPageWidth;
@@ -508,7 +710,6 @@ begin
         ARect.Left := ARect.Left + AElementInfo^.OffSet;
         AWidth := AWidth - 10
       end;
-
     ctGoPageLabelR:
       begin
         AElementInfo^.OffSet := 0;
@@ -533,21 +734,16 @@ begin
   end;
   ARect.Width := AWidth;
   AElementInfo^.Rect := ARect;
-  // AElementInfo^.Left := ALeft + 2 * FControlList.Count;;
   AElementInfo^.Value := AValue;
   AElementInfo^.Caption := ACaption;
-  AElementInfo^.Showing := True;
-
+  AElementInfo^.Showing := true;
   AElementInfo^.ControlType := AControlType;
-  AElementInfo^.Showing := True;
-
+  AElementInfo^.Showing := true;
   FControlList.Add(AElementInfo);
-
 end;
 
 procedure TCustomDevDataPager.AdjustPageNum;
 var
-  R: TRect;
   I: Integer;
   AElementInfo: PElementInfo;
 begin
@@ -558,6 +754,7 @@ begin
     FPageNumEdit.Left := -100;
     FPageNumEdit.Parent := Self;
     FPageNumEdit.Visible := False;
+    FPageNumEdit.BorderStyle := bsNone;
     FPageNumEdit.FrameColor := Setting.FrameColor;
     FPageNumEdit.OnChange := OnPageNumChange;
   end;
@@ -566,16 +763,16 @@ begin
     AElementInfo := PElementInfo(FControlList.Items[I]);
     if AElementInfo.ControlType = ctGoPage then
     begin
-      R := AElementInfo.Rect;
+      { R := AElementInfo.Rect;
 
-      FPageNumEdit.Width := R.Width;
-      FPageNumEdit.Height := GoPageHeight;
-      FPageNumEdit.Left := R.Left;
-      FPageNumEdit.Top := R.Top;
-      FPageNumEdit.Value := PageNum;
-      if not FPageNumEdit.Visible then
+        FPageNumEdit.Width := R.Width;
+        FPageNumEdit.Height := GoPageHeight;
+        FPageNumEdit.Left := R.Left;
+        FPageNumEdit.Top := R.Top;
+        FPageNumEdit.Value := PageNum;
+        if not FPageNumEdit.Visible then
         FPageNumEdit.Visible := RecordCount > 0;
-
+      }
       Break;
     end;
   end;
@@ -593,11 +790,6 @@ begin
   end;
 end;
 
-{$IFDEF DELPHIBERLIN}
-
-procedure TCustomDevDataPager.ChangeScale(M, D: Integer; isDpiChange: Boolean);
-{$ELSE}
-
 procedure TCustomDevDataPager.ChangeButtonOK;
 var
   I: Integer;
@@ -609,73 +801,10 @@ begin
     if AElementInfo.ControlType = ctGoPageOk then
     begin
       AElementInfo.Enabled := PageNum <> FPageNumEdit.Value;
-      Invalidate;
+      PaintChanged;
       Break;
     end;
   end;
-end;
-
-procedure TCustomDevDataPager.ChangeScale(M, D: Integer);
-{$ENDIF}
-begin
-  ScaleFactor.Change(M, D);
-  inherited;
-  LookAndFeel.Refresh;
-end;
-
-procedure TCustomDevDataPager.WMMouseMove(var Message: TWMMouseMove);
-var
-  CursorPos: TPoint;
-  R, TmpRect: TRect;
-  I: Integer;
-  // i: TPageElementType;
-  AElementInfo: PElementInfo;
-begin
-  inherited;
-  if not(csDesigning in ComponentState) then
-  begin
-    GetCursorPos(CursorPos);
-    for I := 0 to FControlList.Count - 1 do
-    begin
-      AElementInfo := PElementInfo(FControlList.Items[I]);
-      R := AElementInfo.Rect;
-      if R.Right > 0 then
-      begin
-        TmpRect.TopLeft := ClientToScreen(R.TopLeft);
-        TmpRect.BottomRight := ClientToScreen(R.BottomRight);
-        if PtInRect(TmpRect, CursorPos) and (AElementInfo.Enabled) then
-        begin
-          { if (AElementInfo.ControlType = ctLabelRecordCount) then
-            begin
-            if Cursor <> crDefault then
-            begin
-            Cursor := crDefault;
-            end;
-            FOverElement := nil;
-            Break;
-            end; }
-
-          FOverElement := AElementInfo;
-          if Cursor <> crHandPoint then
-          begin
-            Cursor := crHandPoint;
-            Invalidate;
-            Break;
-          end;
-        end
-        else
-        begin
-          FOverElement := nil;
-          if Cursor <> crDefault then
-          begin
-            Cursor := crDefault;
-            Invalidate;
-          end;
-        end;
-      end;
-    end;
-  end;
-
 end;
 
 procedure TCustomDevDataPager.CMMouseEnter(var Message: TMessage);
@@ -689,7 +818,7 @@ begin
   if Self.Cursor <> crDefault then
     Self.Cursor := crDefault;
 
-  Invalidate;
+  PaintChanged;
 end;
 
 procedure TCustomDevDataPager.ControlListClear;
@@ -720,11 +849,11 @@ begin
   FOldPageSize := PageSize;
   Color := clWhite;
 
-  FPageSetting := TPageSetting.Create(Self);
-
+  FDataPagerSetting := TDataPagerSetting.Create(Self);
+{$IFDEF DevGDIPlus}
   FLookAndFeel := TcxLookAndFeel.Create(Self);
   FLookAndFeel.OnChanged := LookAndFeelChanged;
-
+{$ENDIF}
   Prepare;
   // RecordCount := 0;
   // Invalidate;
@@ -742,7 +871,7 @@ begin
     FPageSizePopup := TPopupMenu.Create(Self);
     FPageSizePopup.AutoHotkeys := maManual;
   end;
-  PageSize_ARR := FPageSetting.PageSizeSet.Split([',']);
+  PageSize_ARR := FDataPagerSetting.PageSizeSet.Split([',']);
   FPageSizePopup.Items.Clear;
   for I := 0 to Length(PageSize_ARR) - 1 do
   begin
@@ -759,8 +888,10 @@ end;
 
 destructor TCustomDevDataPager.Destroy;
 begin
-  FPageSetting.Free;
+  FDataPagerSetting.Free;
+{$IFDEF DevGDIPlus}
   FreeAndNil(FLookAndFeel);
+{$ENDIF}
   ControlListClear;
   FControlList.Free;
   if FPageSizePopup <> nil then
@@ -841,46 +972,17 @@ begin
     FOnPageSize(Self, PageSize);
 end;
 
-procedure TCustomDevDataPager.DrawDataPager;
-var
-  AGraphics: TdxGPGraphics;
+procedure TCustomDevDataPager.DrawDropDownButton(ACanvas: TCanvas; R: TRect; AFrameColor: TColor; ABrushColor: TColor);
 begin
-  inherited;
-  AGraphics := dxGpBeginPaint(Canvas.Handle, Self.ClientBounds);
-  try
-    AGraphics.SmoothingMode := smAntiAlias;
-    if IsUseSkin then
-    begin
-      Color := Painter.DefaultContentColor;
-    end
-    else
-    begin
-      Color := FPageSetting.BackgroundColor;
-    end;
-    DrawPageNums(Canvas, AGraphics);
-  finally
-    dxGpEndPaint(AGraphics);
-  end;
-
-end;
-
-procedure TCustomDevDataPager.DrawDropDownButton(ACanvas: TcxCanvas; R: TRect; AFrameColor: TColor;
-  ABrushColor: TColor);
-
-  function GetArrowColor: TColor;
-  begin
-    Result := FPageSetting.FArrowColor;
-  end;
-
-begin
-  ACanvas.FrameRect(R, AFrameColor);
+  ACanvas.Brush.Color := AFrameColor;
+  ACanvas.FrameRect(R);
   InflateRect(R, -1, -1);
   ACanvas.Brush.Color := ABrushColor;
   ACanvas.FillRect(R);
-  DrawButtonArrow(ACanvas, R, GetArrowColor);
+  DrawButtonArrow(ACanvas, R, FDataPagerSetting.FArrowColor);
 end;
 
-procedure TCustomDevDataPager.DrawPageNums(ACanvas: TcxCanvas; AGraphics: TdxGPGraphics);
+procedure TCustomDevDataPager.DrawPageNums(ACanvas: TCanvas{$IFDEF DevGDIPlus}; AGraphics: TdxGPGraphics{$ENDIF});
 var
   FElementInfo: PElementInfo;
   I: Integer;
@@ -890,10 +992,9 @@ begin
     FElementInfo := PElementInfo(FControlList.Items[I]);
     if FElementInfo.Showing then
     begin
-      DrawControl(ACanvas, AGraphics, FElementInfo);
+      DrawInternalControl(ACanvas {$IFDEF DevGDIPlus}, AGraphics{$ENDIF}, FElementInfo);
     end;
   end;
-
 end;
 
 function TCustomDevDataPager.GetElementWidth: Integer;
@@ -912,6 +1013,20 @@ begin
   end;
 end;
 
+{$IFDEF DevGDIPlus}
+{$IFDEF DELPHIBERLIN}
+
+procedure TCustomDevDataPager.ChangeScale(M, D: Integer; isDpiChange: Boolean);
+{$ELSE}
+
+procedure TCustomDevDataPager.ChangeScale(M, D: Integer);
+{$ENDIF}
+begin
+  ScaleFactor.Change(M, D);
+  inherited;
+  LookAndFeel.Refresh;
+end;
+
 function TCustomDevDataPager.GetLookAndFeel: TcxLookAndFeel;
 begin
   Result := LookAndFeel;
@@ -922,13 +1037,6 @@ begin
   Result := GetDataPagerPainter(LookAndFeel);
 end;
 
-procedure TCustomDevDataPager.Invalidate;
-begin
-
-  inherited;
-
-end;
-
 function TCustomDevDataPager.IsUseSkin: Boolean;
 begin
   Result := (not LookAndFeel.NativeStyle) and (LookAndFeel.Kind = lfUltraFlat);
@@ -936,17 +1044,95 @@ end;
 
 procedure TCustomDevDataPager.LookAndFeelChanged(Sender: TcxLookAndFeel; AChangedValues: TcxLookAndFeelValues);
 begin
+  PaintChanged;
+end;
+
+procedure TCustomDevDataPager.SetLookAndFeel(const Value: TcxLookAndFeel);
+begin
+  FLookAndFeel.Assign(Value);
+end;
+
+procedure TCustomDevDataPager.PaintChanged;
+begin
   Invalidate;
 end;
+
+{$ENDIF}
 
 procedure TCustomDevDataPager.MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   inherited;
   if (Button = mbLeft) and Enabled then
   begin
-    FDownElement := FOverElement;
+    FDownElement := FHoverElement;
+    PaintChanged;
   end;
-  Invalidate;
+end;
+
+procedure TCustomDevDataPager.MouseMove(Shift: TShiftState; X, Y: Integer);
+var
+  CursorPos: TPoint;
+  R, TmpRect, AGoRect: TRect;
+  I: Integer;
+  AElementInfo: PElementInfo;
+begin
+  inherited;
+  if not(csDesigning in ComponentState) then
+  begin
+    GetCursorPos(CursorPos);
+    for I := 0 to FControlList.Count - 1 do
+    begin
+      AElementInfo := PElementInfo(FControlList.Items[I]);
+
+      R := AElementInfo.Rect;
+      if R.Right > 0 then
+      begin
+        TmpRect.TopLeft := ClientToScreen(R.TopLeft);
+        TmpRect.BottomRight := ClientToScreen(R.BottomRight);
+        if PtInRect(TmpRect, CursorPos) and (AElementInfo.Enabled) then
+        begin
+
+          FHoverElement := AElementInfo;
+
+          if AElementInfo.ControlType = ctGoPage then
+          begin
+            AGoRect := AElementInfo.Rect;
+            InflateRect(AGoRect, -1, -1);
+            FPageNumEdit.Width := AGoRect.Width;
+            FPageNumEdit.Height := AGoRect.Height - 2;
+            FPageNumEdit.Left := AGoRect.Left;
+            FPageNumEdit.Top := AGoRect.Top + 2;
+            FPageNumEdit.Value := PageNum;
+            FPageNumEdit.Visible := RecordCount > 0;
+          end
+          else
+          begin
+            FPageNumEdit.Visible := False;
+            if Cursor <> crHandPoint then
+            begin
+              Cursor := crHandPoint;
+            end;
+            if (FCurrElement <> AElementInfo) then
+            begin
+              PaintChanged;
+              FCurrElement := AElementInfo;
+            end;
+          end;
+          Break;
+        end
+        else
+        begin
+          FHoverElement := nil;
+          if Cursor <> crDefault then
+          begin
+            Cursor := crDefault;
+            // Changed;
+          end;
+        end;
+      end;
+    end;
+  end;
+
 end;
 
 procedure TCustomDevDataPager.MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -956,9 +1142,10 @@ begin
   begin
     DoPageElementEvent(FDownElement);
     FDownElement := nil;
-    FOverElement := FDownElement;
+    FHoverElement := nil;
+    FCurrElement := nil;
+    PaintChanged;
   end;
-  Invalidate;
 end;
 
 procedure TCustomDevDataPager.Notification(AComponent: TComponent; Operation: TOperation);
@@ -971,7 +1158,7 @@ begin
   ChangeButtonOK;
 end;
 
-procedure TCustomDevDataPager.DrawButtonArrow(ACanvas: TcxCanvas; const R: TRect; AColor: TColor);
+procedure TCustomDevDataPager.DrawButtonArrow(ACanvas: TCanvas; const R: TRect; AColor: TColor);
 var
   p: array [0 .. 2] of TPoint;
   procedure CalculatePoints;
@@ -1002,11 +1189,85 @@ begin
   ACanvas.Polygon(p);
 end;
 
-procedure TCustomDevDataPager.DrawControl(ACanvas: TcxCanvas; AGraphics: TdxGPGraphics; AElementInfo: PElementInfo);
+procedure TCustomDevDataPager.DrawControl(ACanvas: TCanvas);
+{$IFDEF DevGDIPlus}
+var
+  AGraphics: TdxGPGraphics;
+begin
+  inherited;
+  AGraphics := dxGpBeginPaint(ACanvas.Handle, Self.ClientBounds);
+  try
+    AGraphics.SmoothingMode := smAntiAlias;
+    if IsUseSkin then
+    begin
+      Color := Painter.DefaultContentColor;
+    end
+    else
+    begin
+      Color := FDataPagerSetting.BackgroundColor;
+    end;
+    DrawPageNums(ACanvas, AGraphics);
+  finally
+    dxGpEndPaint(AGraphics);
+  end;
+
+{$ELSE}
+
+begin
+  inherited;
+  Color := FDataPagerSetting.BackgroundColor;
+  DrawPageNums(Canvas);
+{$ENDIF}
+end;
+
+procedure TCustomDevDataPager.DrawInternalControl(ACanvas: TCanvas{$IFDEF DevGDIPlus}; AGraphics: TdxGPGraphics{$ENDIF};
+  AElementInfo: PElementInfo);
 const
   RadiusX = 0;
   RadiusY = 0;
   procedure DrawText;
+  var
+    X, Y: Integer;
+    AText: string;
+    ARect: TRect;
+  begin
+    AText := AElementInfo.Caption;
+    ARect := AElementInfo.Rect;
+    if AElementInfo.ControlType = ctPageSize then
+      ARect.Width := ARect.Width - DropDownButtonWidth;
+
+    // LabelFont
+
+    case AElementInfo.ControlType of
+      ctLabelRecordCount, ctGoPageLabelL, ctGoPageLabelR:
+        begin
+          ACanvas.Font.Assign(FDataPagerSetting.LabelFont);
+        end;
+    else
+      begin
+        if FPageNum.ToString.Equals(AElementInfo.Caption) then
+        begin
+          ACanvas.Font.Assign(FDataPagerSetting.ActiveFont);
+        end
+        else
+        begin
+          if not AElementInfo.Enabled then
+            ACanvas.Font.Assign(FDataPagerSetting.DisabledFont)
+          else
+            ACanvas.Font.Assign(FDataPagerSetting.Font);
+        end;
+      end;
+    end;
+
+    X := ARect.Left + (ARect.Width - ACanvas.TextWidth(AText)) div 2;
+    Y := ARect.Top + (ARect.Height - ACanvas.TextHeight(AText)) div 2;
+    ACanvas.Brush.Style := bsClear;
+    ACanvas.TextOut(X, Y, AText);
+  end;
+
+  procedure DrawGoPage;
+  var
+    ABrushColor, AFrameColor: TColor;
   var
     X, Y: Integer;
     AFont: TFont;
@@ -1014,106 +1275,126 @@ const
     ARect: TRect;
     AFontColor: TColor;
   begin
-    AFontColor := FPageSetting.Font.Color;
-    AFont := FPageSetting.Font;
-    AText := AElementInfo.Caption;
-    ARect := AElementInfo.Rect;
-    if AElementInfo.ControlType = ctPageSize then
-      ARect.Width := ARect.Width - DropDownButtonWidth;
-
-    X := ARect.Left + (ARect.Width - ACanvas.TextWidth(AText)) div 2;
-    Y := ARect.Top + (ARect.Height - ACanvas.TextHeight(AText)) div 2;
-    ACanvas.Brush.Style := bsClear;
-
-    ACanvas.Font := AFont;
-
-    if FPageNum.ToString.Equals(AElementInfo.Caption) then
+    if AElementInfo.Enabled then
     begin
-      ACanvas.Font.Color := clWhite;
+      ABrushColor := FDataPagerSetting.DefaultColor;
+      AFrameColor := FDataPagerSetting.FrameColor;
     end
     else
     begin
-      if not AElementInfo.Enabled then
-        ACanvas.Font.Color := clGray
-      else
-        ACanvas.Font.Color := AFontColor;
+      ABrushColor := FDataPagerSetting.DefaultColor;
+      AFrameColor := clBtnFace;
     end;
+    ARect := AElementInfo.Rect;
+
+    ACanvas.Brush.Color := AFrameColor;
+    ACanvas.FrameRect(ARect);
+    InflateRect(ARect, -1, -1);
+    ACanvas.Brush.Color := ABrushColor;
+    ACanvas.FillRect(ARect);
+
+    AFontColor := FDataPagerSetting.Font.Color;
+    AFont := FDataPagerSetting.Font;
+    AText := PageNum.ToString;
+    X := ARect.Left + (ARect.Width - ACanvas.TextWidth(AText)) div 2;
+    Y := ARect.Top + (ARect.Height - ACanvas.TextHeight(AText)) div 2;
+    ACanvas.Brush.Style := bsClear;
+    ACanvas.Font := AFont;
+
+    ACanvas.Font.Color := AFontColor;
     ACanvas.TextOut(X, Y, AText);
+
   end;
 
   procedure DrawButton;
   var
+{$IFDEF DevGDIPlus}
     APen: TdxGPPen;
     ABrush: TdxGPBrush;
+{$ENDIF}
+    R: TRect;
     ABrushColor, AFrameColor: TColor;
   begin
     if AElementInfo.Enabled then
     begin
       if FPageNum.ToString.Equals(AElementInfo.Caption) then
       begin
-        ABrushColor := FPageSetting.ActiveColor;
+        ABrushColor := FDataPagerSetting.ActiveColor;
       end
       else
       begin
-        if FOverElement = AElementInfo then
-          ABrushColor := FPageSetting.HoverColor
+        if FHoverElement = AElementInfo then
+          ABrushColor := FDataPagerSetting.HoverColor
         else
-          ABrushColor := FPageSetting.DefaultColor;
+          ABrushColor := FDataPagerSetting.DefaultColor;
       end;
-      AFrameColor := FPageSetting.FrameColor;
+      AFrameColor := FDataPagerSetting.FrameColor;
     end
     else
     begin
-      ABrushColor := FPageSetting.DefaultColor;
+      ABrushColor := FDataPagerSetting.DefaultColor;
       AFrameColor := clBtnFace;
     end;
-
-    APen := TdxGPPen.Create(TdxAlphaColors.FromColor(AFrameColor), FPageSetting.FrameWidth, psSolid);
+    R := AElementInfo.Rect;
+{$IFDEF DevGDIPlus}
+    APen := TdxGPPen.Create(TdxAlphaColors.FromColor(AFrameColor), FDataPagerSetting.FrameWidth, psSolid);
     ABrush := TdxGPBrush.Create;
     ABrush.Color := TdxAlphaColors.FromColor(ABrushColor);
     try
-      AGraphics.RoundRect(AElementInfo.Rect, APen, ABrush, RadiusX, RadiusY);
+      AGraphics.RoundRect(R, APen, ABrush, RadiusX, RadiusY);
     finally
       ABrush.Free;
       APen.Free;
     end;
+{$ELSE}
+    ACanvas.Brush.Color := AFrameColor;
+    ACanvas.FrameRect(R);
+    InflateRect(R, -1, -1);
+    ACanvas.Brush.Color := ABrushColor;
+    ACanvas.FillRect(R);
+{$ENDIF}
   end;
 
+{$IFDEF DevGDIPlus}
   procedure DrawSkinButton;
   begin
     if AElementInfo.Enabled then
     begin
       if FPageNum.ToString.Equals(AElementInfo.Caption) then
       begin
-        Painter.DrawButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsPressed, True);
+        Painter.DrawButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsPressed, true);
       end
       else
       begin
-        if FOverElement = AElementInfo then
-          Painter.DrawButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsHot, True)
+        if FHoverElement = AElementInfo then
+          Painter.DrawButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsHot, true)
         else
-          Painter.DrawButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsNormal, True);
+          Painter.DrawButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsNormal, true);
       end;
     end
     else
     begin
-      Painter.DrawButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsDisabled, True);
+      Painter.DrawButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsDisabled, true);
     end;
 
   end;
-
+{$ENDIF}
   procedure DrawPageSize;
   var
+{$IFDEF DevGDIPlus}
     APen: TdxGPPen;
     ABrush: TdxGPBrush;
+{$ENDIF}
     AFrameColor, ABrushColor: TColor;
     ARect: TRect;
   begin
     ARect := AElementInfo.Rect;
+
+{$IFDEF DevGDIPlus}
     if IsUseSkin then
     begin
       AFrameColor := TdxSkinLookAndFeelPainter(Painter).SkinInfo.ContainerBorderColor.Value;
-      if FOverElement = AElementInfo then
+      if FHoverElement = AElementInfo then
       begin
         ABrushColor := Painter.DefaultContentColor;
         AFrameColor := Painter.DefaultSelectionColor;
@@ -1122,15 +1403,16 @@ const
         ABrushColor := Painter.DefaultControlColor;
     end
     else
+{$ENDIF}
     begin
-      AFrameColor := FPageSetting.FrameColor;
-      if FOverElement = AElementInfo then
-        ABrushColor := FPageSetting.HoverColor
+      AFrameColor := FDataPagerSetting.FrameColor;
+      if FHoverElement = AElementInfo then
+        ABrushColor := FDataPagerSetting.HoverColor
       else
-        ABrushColor := FPageSetting.DefaultColor;
+        ABrushColor := FDataPagerSetting.DefaultColor;
     end;
-
-    APen := TdxGPPen.Create(TdxAlphaColors.FromColor(AFrameColor), FPageSetting.FrameWidth, psSolid);
+{$IFDEF DevGDIPlus}
+    APen := TdxGPPen.Create(TdxAlphaColors.FromColor(AFrameColor), FDataPagerSetting.FrameWidth, psSolid);
     ABrush := TdxGPBrush.Create;
     ABrush.Color := TdxAlphaColors.FromColor(ABrushColor);
     try
@@ -1141,12 +1423,20 @@ const
       ABrush.Free;
       APen.Free;
     end;
-
+{$ELSE}
+    ARect.Width := ARect.Width - DropDownButtonWidth;
+    ACanvas.Brush.Color := AFrameColor;
+    ACanvas.FrameRect(ARect);
+    InflateRect(ARect, -1, -1);
+    ACanvas.Brush.Color := ABrushColor;
+    ACanvas.FillRect(ARect);
+    InflateRect(ARect, 1, 1);
+{$ENDIF}
     // 画下拉箭头
+
     ARect.Left := ARect.Left + ARect.Width - 1;
     ARect.Width := DropDownButtonWidth;
     DrawDropDownButton(ACanvas, ARect, AFrameColor, ABrushColor);
-
   end;
 
 begin
@@ -1158,11 +1448,13 @@ begin
       end;
     ctPriorPage, ctNextPage, ctFirstPage, ctLastPage, ctPageNum, ctGoPageOk, ctEllipsis:
       begin
+{$IFDEF DevGDIPlus}
         if IsUseSkin then
         begin
           DrawSkinButton;
         end
         else
+{$ENDIF}
         begin
           DrawButton;
           DrawText;
@@ -1170,7 +1462,7 @@ begin
       end;
     ctGoPage:
       begin
-        // DrawButton;
+        DrawGoPage;
       end;
     ctGoPageLabelL, ctGoPageLabelR:
       begin
@@ -1188,7 +1480,14 @@ end;
 procedure TCustomDevDataPager.Paint;
 begin
   inherited;
-  DrawDataPager;
+{$IFDEF DevGDIPlus}
+  DrawControl(Canvas);
+{$ENDIF}
+end;
+
+function TCustomDevDataPager.PageCount: Integer;
+begin
+  Result := CalcPageCount;
 end;
 
 procedure TCustomDevDataPager.Prepare;
@@ -1204,21 +1503,20 @@ begin
 
     if APageCount > 0 then
     begin
-
       if (FPageNum = 1) then
       begin
         AddElement(ctPriorPage, '上一页', False)
       end
       else
       begin
-        AddElement(ctPriorPage, '上一页', True);
+        AddElement(ctPriorPage, '上一页', true);
       end;
 
       if APageCount <= 9 then
       begin
         for I := 1 to APageCount do
         begin
-          AddElement(ctPageNum, I.ToString, True, I);
+          AddElement(ctPageNum, I.ToString, true, I);
         end;
       end
       else
@@ -1227,20 +1525,20 @@ begin
         begin
           for I := 1 to 1 do
           begin
-            AddElement(ctPageNum, I.ToString, True, I);
+            AddElement(ctPageNum, I.ToString, true, I);
           end;
           if (PageNum - 2) = 2 then
-            AddElement(ctPageNum, '2', True, 2)
+            AddElement(ctPageNum, '2', true, 2)
           else
             AddElement(ctEllipsis, PageNumSeparator, False);
 
           for I := PageNum - 1 to PageNum + 1 do
           begin
-            AddElement(ctPageNum, I.ToString, True, I);
+            AddElement(ctPageNum, I.ToString, true, I);
           end;
 
           if (PageNum + 2) = APageCount - 1 then
-            AddElement(ctPageNum, IntToStr(PageNum + 2), True, PageNum + 2)
+            AddElement(ctPageNum, IntToStr(PageNum + 2), true, PageNum + 2)
           else
           begin
             if (PageNum + 2) <> APageCount then
@@ -1249,32 +1547,32 @@ begin
 
           for I := APageCount to APageCount do
           begin
-            AddElement(ctPageNum, I.ToString, True, I);
+            AddElement(ctPageNum, I.ToString, true, I);
           end;
         end
         else
         begin
           for I := 1 to 3 do
           begin
-            AddElement(ctPageNum, I.ToString, True, I);
+            AddElement(ctPageNum, I.ToString, true, I);
           end;
           AddElement(ctEllipsis, PageNumSeparator, False);
           for I := APageCount - 2 to APageCount do
           begin
-            AddElement(ctPageNum, I.ToString, True, I);
+            AddElement(ctPageNum, I.ToString, true, I);
           end;
         end;
       end;
       if (FPageNum = APageCount) then
         AddElement(ctNextPage, '下一页', False)
       else
-        AddElement(ctNextPage, '下一页', True);
+        AddElement(ctNextPage, '下一页', true);
       AddElement(ctGoPageLabelL, '到第', False);
-      AddElement(ctGoPage, FPageNum.ToString, True);
+      AddElement(ctGoPage, FPageNum.ToString, true);
       AddElement(ctGoPageLabelR, '页', False);
-      if FPageSetting.ShowOKButton then
+      if FDataPagerSetting.ShowOKButton then
         AddElement(ctGoPageOk, '确定', False);
-      AddElement(ctPageSize, Format('%d条/页', [PageSize]), True);
+      AddElement(ctPageSize, Format('%d条/页', [PageSize]), true);
     end;
     AddElement(ctLabelRecordCount, Format('共 %d 条记录', [RecordCount]), False);
 
@@ -1287,14 +1585,11 @@ end;
 
 procedure TCustomDevDataPager.Resize;
 begin
+  inherited;
+  if (Width = 0) or (Height = 0) then
+    exit;
   Prepare;
-  Invalidate;
-  inherited Resize;
-end;
-
-procedure TCustomDevDataPager.SetLookAndFeel(const Value: TcxLookAndFeel);
-begin
-  FLookAndFeel.Assign(Value);
+  PaintChanged;
 end;
 
 procedure TCustomDevDataPager.SetPageNum(const Value: Integer);
@@ -1325,7 +1620,7 @@ begin
       FOnPageNumEvent(Self);
     FPageNumEdit.Value := FPageNum;
     ChangeButtonOK;
-    Invalidate;
+    PaintChanged;
   end;
 end;
 
@@ -1355,7 +1650,7 @@ begin
     Prepare;
     if Assigned(FOnPageNumEvent) then
       FOnPageNumEvent(Self);
-    Invalidate;
+    PaintChanged;
   end;
 end;
 
@@ -1384,7 +1679,7 @@ begin
         FPageNum := 1;
     end;
     Prepare;
-    Invalidate;
+    PaintChanged;
   end;
 end;
 
@@ -1395,7 +1690,7 @@ begin
   inherited Create(AOwner);
   FOwner := AOwner;
   OnKeyDown := OnPageNumKeyDown;
-
+  // DoubleBuffered := true;
 end;
 
 procedure TPageNumEdit.CreateParams(var Params: TCreateParams);
@@ -1443,31 +1738,4 @@ begin
   Text := IntToStr(Value);
 end;
 
-procedure TPageNumEdit.WMNCPAINT(var msg: TWMNCPaint);
-var
-  DC: HDC;
-  BorderBrush: HBRUSH;
-  R: TRect;
-  AFrameColor: TColor;
-begin
-  inherited;
-  if FOwner = nil then
-    exit;
-  AFrameColor := FFrameColor;
-  SetRect(R, 0, 0, Width, Height);
-  DC := GetWindowDC(Handle);
-  try
-    SetRect(R, 0, 0, Width, Height);
-
-    BorderBrush := CreateSolidBrush(AFrameColor);
-    FrameRect(DC, R, BorderBrush); // 绘制边线框
-    DeleteObject(BorderBrush);
-  finally
-    ReleaseDC(Handle, DC)
-  end;
-
-end;
-
 end.
-
-
