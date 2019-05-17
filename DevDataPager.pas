@@ -267,6 +267,7 @@ type
   protected
     procedure CreateParams(var Params: TCreateParams); override;
     procedure OnPageNumKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure OnPageNumMouseLeave(Sender: TObject);
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -1098,11 +1099,10 @@ begin
           begin
             AGoRect := AElementInfo.Rect;
             InflateRect(AGoRect, -1, -1);
-            FPageNumEdit.Width := AGoRect.Width;
+            FPageNumEdit.Width := AGoRect.Width - 2;
             FPageNumEdit.Height := AGoRect.Height - 2;
-            FPageNumEdit.Left := AGoRect.Left;
+            FPageNumEdit.Left := AGoRect.Left + 1;
             FPageNumEdit.Top := AGoRect.Top + 2;
-            FPageNumEdit.Value := PageNum;
             FPageNumEdit.Visible := RecordCount > 0;
           end
           else
@@ -1122,6 +1122,11 @@ begin
         end
         else
         begin
+          if FPageNumEdit.Visible then
+          begin
+            FPageNumEdit.Visible := False;
+            PaintChanged;
+          end;
           FHoverElement := nil;
           if Cursor <> crDefault then
           begin
@@ -1265,15 +1270,13 @@ const
     ACanvas.TextOut(X, Y, AText);
   end;
 
-  procedure DrawGoPage;
+  procedure DrawGoPage;  //画跳转页
   var
     ABrushColor, AFrameColor: TColor;
   var
     X, Y: Integer;
-    AFont: TFont;
     AText: string;
     ARect: TRect;
-    AFontColor: TColor;
   begin
     if AElementInfo.Enabled then
     begin
@@ -1290,20 +1293,19 @@ const
     ACanvas.Brush.Color := AFrameColor;
     ACanvas.FrameRect(ARect);
     InflateRect(ARect, -1, -1);
-    ACanvas.Brush.Color := ABrushColor;
+    ACanvas.Brush.Color :=   ABrushColor;
     ACanvas.FillRect(ARect);
-
-    AFontColor := FDataPagerSetting.Font.Color;
-    AFont := FDataPagerSetting.Font;
-    AText := PageNum.ToString;
+    AText := FPageNumEdit.Text;
+    if AText.IsEmpty then
+    begin
+      AText := PageNum.ToString;
+      FPageNumEdit.Text := AText;
+    end;
     X := ARect.Left + (ARect.Width - ACanvas.TextWidth(AText)) div 2;
     Y := ARect.Top + (ARect.Height - ACanvas.TextHeight(AText)) div 2;
     ACanvas.Brush.Style := bsClear;
-    ACanvas.Font := AFont;
-
-    ACanvas.Font.Color := AFontColor;
+    ACanvas.Font.Assign(FDataPagerSetting.Font);
     ACanvas.TextOut(X, Y, AText);
-
   end;
 
   procedure DrawButton;
@@ -1690,6 +1692,7 @@ begin
   inherited Create(AOwner);
   FOwner := AOwner;
   OnKeyDown := OnPageNumKeyDown;
+  OnMouseLeave := OnPageNumMouseLeave;
   // DoubleBuffered := true;
 end;
 
@@ -1722,6 +1725,13 @@ begin
     TCustomDevDataPager(FOwner).PageNum := Value;
     SelectAll;
   end;
+end;
+
+procedure TPageNumEdit.OnPageNumMouseLeave(Sender: TObject);
+begin
+  if FOwner = nil then
+    exit;
+  TCustomDevDataPager(FOwner).PaintChanged;
 end;
 
 procedure TPageNumEdit.SetFrameColor(const Value: TColor);

@@ -18,7 +18,6 @@ type
     DevDataPager1: TDevDataPager;
     DevDataPager7: TDevDataPager;
     CheckBox1: TCheckBox;
-    procedure FormCreate(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure DevDataPager3GoPage(Sender: TObject; APageNum: Integer);
     procedure DevDataPager3NextPage(Sender: TObject; APageNum: Integer);
@@ -70,12 +69,6 @@ end;
 procedure TfrmMain.DevDataPager3PriorPage(Sender: TObject; APageNum: Integer);
 begin
   Memo1.Lines.Add(Format('点击上一页%d,每页%d行', [APageNum, TDevDataPager(Sender).PageSize]));
-end;
-
-procedure TfrmMain.FormCreate(Sender: TObject);
-begin
-
-
 end;
 
 end.
