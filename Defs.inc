@@ -1,1 +1,1 @@
-{ .$DEFINE DevGDIPlus }
+{.$DEFINE DevGDIPlus }
