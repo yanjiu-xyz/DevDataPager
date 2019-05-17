@@ -18,19 +18,20 @@
     
   注：部分代码引用了 Developer Express 的相关单元，如有侵权可联系移除!  
   
-  {
-  beta 版本  
-  初始版本提交  
+ 
+
+  修改历史 
+
   ===================  
 
   + 增加 Dev依赖编译指令，默认为关闭状态,在Defs.inc文件取消注释即可  
   + 增加 字体及颜色定义属性  
   * 修正 cpu占用过高的问题  
   * 调整了部分属性名称  
-  ===================  
+
+
+
   
-}
   
-  
-  
+  运行效果图 
   ![image](https://github.com/yanjiu-xyz/DevDataPager/blob/master/DevDataPager.png)
