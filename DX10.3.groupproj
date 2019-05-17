@@ -1,0 +1,48 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{BAEA1EC8-D175-4A18-A459-BC76BC9812AD}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="DataPager.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="demo\demo.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="DataPager">
+        <MSBuild Projects="DataPager.dproj"/>
+    </Target>
+    <Target Name="DataPager:Clean">
+        <MSBuild Projects="DataPager.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DataPager:Make">
+        <MSBuild Projects="DataPager.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="demo">
+        <MSBuild Projects="demo\demo.dproj"/>
+    </Target>
+    <Target Name="demo:Clean">
+        <MSBuild Projects="demo\demo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="demo:Make">
+        <MSBuild Projects="demo\demo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="DataPager;demo"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="DataPager:Clean;demo:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="DataPager:Make;demo:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
