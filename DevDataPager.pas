@@ -699,7 +699,7 @@ begin
         ARect.Top := ((Height - AHeight) + (FDataPagerSetting.ElementHeight - GoPageHeight)) div 2;
         ARect.Height := GoPageHeight;
         ARect.Left := ARect.Left + AElementInfo^.OffSet;
-        AWidth := GoPageWidth;
+        AWidth := Max(GoPageWidth, Canvas.TextWidth(CalcPageCount.ToString) + 8);
       end;
     ctGoPageOk:
       begin
