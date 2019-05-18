@@ -281,7 +281,7 @@ type
     property Align;
     property Anchors;
     property Enabled;
-    property DoubleBuffered;
+    property DoubleBuffered default true;
 {$IFDEF DevGDIPlus}
     property LookAndFeel;
 {$ENDIF}
@@ -850,6 +850,8 @@ begin
   FOldPageSize := PageSize;
   Color := clWhite;
 
+  DoubleBuffered := true;
+
   FDataPagerSetting := TDataPagerSetting.Create(Self);
 {$IFDEF DevGDIPlus}
   FLookAndFeel := TcxLookAndFeel.Create(Self);
@@ -1159,7 +1161,15 @@ begin
 end;
 
 procedure TCustomDevDataPager.OnPageNumChange(Sender: TObject);
+var
+  AValue: Integer;
 begin
+  AValue := StrToIntDef(FPageNumEdit.Text, 1);
+  if AValue > CalcPageCount then
+  begin
+    FPageNumEdit.Text := CalcPageCount.ToString;
+    FPageNumEdit.SelectAll;
+  end;
   ChangeButtonOK;
 end;
 
@@ -1270,7 +1280,7 @@ const
     ACanvas.TextOut(X, Y, AText);
   end;
 
-  procedure DrawGoPage;  //画跳转页
+  procedure DrawGoPage; // 画跳转页
   var
     ABrushColor, AFrameColor: TColor;
   var
@@ -1293,7 +1303,7 @@ const
     ACanvas.Brush.Color := AFrameColor;
     ACanvas.FrameRect(ARect);
     InflateRect(ARect, -1, -1);
-    ACanvas.Brush.Color :=   ABrushColor;
+    ACanvas.Brush.Color := ABrushColor;
     ACanvas.FillRect(ARect);
     AText := FPageNumEdit.Text;
     if AText.IsEmpty then
