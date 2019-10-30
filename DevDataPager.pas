@@ -1647,7 +1647,6 @@ begin
         end
         else
         begin
-
           if (PageNum + 2) >= APageCount then
           begin
             for I := 1 to 1 do
@@ -1657,25 +1656,39 @@ begin
           end
           else
           begin
-            for I := 1 to 5 do
+            for I := 1 to 3 do
             begin
               AddElement(ctPageNum, I.ToString, true, I);
             end;
           end;
 
-          AddElement(ctEllipsis, FLabels.LabelEllipsis, False);
-          if (PageNum + 2) >= APageCount then
+          if (PageNum = 3) and ((PageNum) < APageCount) then
           begin
-            for I := APageCount - 4 to APageCount do
+            for I := 4 to 5 do
+              AddElement(ctPageNum, I.ToString, true, I);
+            AddElement(ctEllipsis, FLabels.LabelEllipsis, False);
+            for I := APageCount to APageCount do
             begin
               AddElement(ctPageNum, I.ToString, true, I);
             end;
           end
           else
           begin
-            for I := APageCount to APageCount do
+
+            AddElement(ctEllipsis, FLabels.LabelEllipsis, False);
+            if (PageNum + 2) >= APageCount then
             begin
-              AddElement(ctPageNum, I.ToString, true, I);
+              for I := APageCount - 4 to APageCount do
+              begin
+                AddElement(ctPageNum, I.ToString, true, I);
+              end;
+            end
+            else
+            begin
+              for I := APageCount - 2 to APageCount do
+              begin
+                AddElement(ctPageNum, I.ToString, true, I);
+              end;
             end;
           end;
 
