@@ -1664,8 +1664,8 @@ begin
 
           if (PageNum = 3) and ((PageNum) < APageCount) then
           begin
-
-            AddElement(ctPageNum, I.ToString, true, I);
+            for I := 4 to 5 do
+              AddElement(ctPageNum, I.ToString, true, I);
             AddElement(ctEllipsis, FLabels.LabelEllipsis, False);
             for I := APageCount to APageCount do
             begin
