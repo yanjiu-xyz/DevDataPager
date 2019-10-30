@@ -910,7 +910,7 @@ end;
 procedure TCustomDevDataPager.SetPageSizeList;
 var
   PageSize_ARR: TArray<string>;
-  APageSize: String;
+  APageSize: Integer;
   I: Integer;
   AItem: TMenuItem;
 begin
@@ -923,10 +923,10 @@ begin
   FPageSizePopup.Items.Clear;
   for I := 0 to Length(PageSize_ARR) - 1 do
   begin
-    APageSize := PageSize_ARR[I];
+    APageSize := StrToIntDef( PageSize_ARR[I],10);
     AItem := TMenuItem.Create(FPageSizePopup);
     AItem.Caption := Format(FLabels.LabelPageSize, [APageSize]);
-    AItem.Tag := StrToIntDef(APageSize, 10);
+    AItem.Tag := APageSize;
     AItem.OnClick := DoPageSizeChange;
     FPageSizePopup.Items.Add(AItem);
   end;
