@@ -54,7 +54,6 @@ uses
     ;
 
 const
-  BtnMinWidth = 35;
   RecordCountWidth = 60;
   GoPageHeight = 22;
   GoPageWidth = 35;
@@ -169,7 +168,6 @@ type
     function GetLookAndFeel: TcxLookAndFeel;
     procedure LookAndFeelChanged(Sender: TcxLookAndFeel; AChangedValues: TcxLookAndFeelValues); override;
 
-
     procedure PaintChanged;
 {$ENDIF}
     function CalcPageCount: Integer;
@@ -225,6 +223,7 @@ type
     FDisabledFont: TFont;
     FActiveFont: TFont;
     FLabelFont: TFont;
+    FElementMinWidth: Integer;
     procedure SetActiveColor(const Value: TColor);
     procedure SetDefaultColor(const Value: TColor);
     procedure SetDownColor(const Value: TColor);
@@ -241,6 +240,7 @@ type
     procedure SetDisabledFont(const Value: TFont);
     procedure SetActiveFont(const Value: TFont);
     procedure SetLabelFont(const Value: TFont);
+    procedure SetElementMinWidth(const Value: Integer);
   public
     constructor Create(AOwner: TComponent);
     destructor Destroy; override;
@@ -262,6 +262,7 @@ type
     property Font: TFont read FFont write SetFont;
     property ActiveFont: TFont read FActiveFont write SetActiveFont;
     property LabelFont: TFont read FLabelFont write SetLabelFont;
+    property ElementMinWidth: Integer read FElementMinWidth write SetElementMinWidth default 25;
 
     property ShowOKButton: Boolean read FShowOKButton write SetShowOKButton default true;
   end;
@@ -510,6 +511,8 @@ begin
     FFont.Assign(TDataPagerSetting(Source).FFont);
     FDisabledFont.Assign(TDataPagerSetting(Source).FDisabledFont);
     FLabelFont.Assign(TDataPagerSetting(Source).FLabelFont);
+    FElementMinWidth := TDataPagerSetting(Source).FElementMinWidth;
+
   end;
 end;
 
@@ -550,6 +553,7 @@ begin
   FBackgroundColor := clWhite;
   FFrameWidth := 1;
   FElementHeight := 25;
+  FElementMinWidth:=25;
   FShowOKButton := true;
   FPageSizeSet := '10,20,30,40,50,100,150';
 end;
@@ -599,6 +603,19 @@ begin
   if Value <> FBackgroundColor then
   begin
     FElementHeight := Value;
+    if FOwner is TCustomDevDataPager then
+    begin
+      TCustomDevDataPager(FOwner).Prepare;
+      TCustomDevDataPager(FOwner).PaintChanged;
+    end;
+  end;
+end;
+
+procedure TDataPagerSetting.SetElementMinWidth(const Value: Integer);
+begin
+  if Value <> FElementMinWidth then
+  begin
+    FElementMinWidth := Value;
     if FOwner is TCustomDevDataPager then
     begin
       TCustomDevDataPager(FOwner).Prepare;
@@ -735,9 +752,9 @@ begin
   ARect.Top := (Height - AHeight) div 2;
   ARect.Height := AHeight;
   if FRecordCount = 0 then
-    AWidth := BtnMinWidth + 8
+    AWidth := Setting.ElementMinWidth + 8
   else
-    AWidth := Max(BtnMinWidth, Canvas.TextWidth(ACaption) + 8);
+    AWidth := Max(Setting.ElementMinWidth, Canvas.TextWidth(ACaption) + 8);
   New(AElementInfo);
   AElementInfo^.OffSet := 0;
   AElementInfo^.Enabled := AEnabled;
@@ -927,7 +944,7 @@ begin
     FPageSizePopup := TPopupMenu.Create(Self);
     FPageSizePopup.AutoHotkeys := maManual;
   end;
-  PageSize_ARR := FDataPagerSetting.PageSizeSet.Split([',']);
+  PageSize_ARR := FDataPagerSetting.PageSizeSet.Split([',',';']);
   FPageSizePopup.Items.Clear;
   for I := 0 to Length(PageSize_ARR) - 1 do
   begin
@@ -1091,7 +1108,6 @@ begin
 end;
 
 {$IFDEF DevGDIPlus}
-
 
 function TCustomDevDataPager.GetLookAndFeel: TcxLookAndFeel;
 begin
