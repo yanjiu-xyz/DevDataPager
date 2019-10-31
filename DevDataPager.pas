@@ -789,13 +789,13 @@ begin
       begin
         AElementInfo^.OffSet := 4;
         ARect.Left := ARect.Left + AElementInfo^.OffSet;
-        AWidth := AWidth - 10
+        AWidth := AWidth - 10 + 6
       end;
     ctGoPageLabelR:
       begin
         AElementInfo^.OffSet := 0;
-        ARect.Left := ARect.Left + AElementInfo^.OffSet;
-        AWidth := AWidth - 10
+        ARect.Left := ARect.Left + AElementInfo^.OffSet  ;
+        AWidth := AWidth - 10 + 4
       end;
     ctPageSize:
       begin
@@ -1931,7 +1931,7 @@ begin
   if AElementInfo <> nil then
   begin
     AElementInfo.Caption := ALabel;
-     TCustomDevDataPager(FOwner).Prepare;
+    TCustomDevDataPager(FOwner).Prepare;
   end;
 end;
 
