@@ -373,6 +373,7 @@ begin
   RegisterComponents('DataPager', [TDevDataPager]);
 end;
 
+
 function GetScreenClient(Control: TControl): TPoint;
 var
   p: TPoint;
@@ -428,6 +429,7 @@ begin
     begin
       FPainting := False;
       DrawControl(Canvas);
+      FPainting := True;
     end;
   end;
 end;
@@ -1123,7 +1125,7 @@ end;
 
 procedure TCustomDevDataPager.PaintChanged;
 begin
-  Invalidate;
+  Repaint;
 end;
 
 {$ENDIF}
