@@ -32,6 +32,9 @@
 
 }
 
+{$IF RTLVersion>=31}// Berlin 及以上版本
+{$DEFINE DELPHIBERLIN}
+{$IFEND}
 unit DevDataPager;
 
 {$I Defs.inc}
@@ -45,6 +48,7 @@ uses
   Types, UITypes
 {$IFDEF DevGDIPlus}
     , cxGraphics, dxCoreGraphics, cxLookAndFeelPainters, dxGDIPlusClasses,
+  dxThemeManager,
   cxLookAndFeels, dxSkinsLookAndFeelPainter, cxControls, cxGeometry, cxDWMApi
 {$ENDIF}
     ;
@@ -164,11 +168,8 @@ type
     // IcxLookAndFeelContainer
     function GetLookAndFeel: TcxLookAndFeel;
     procedure LookAndFeelChanged(Sender: TcxLookAndFeel; AChangedValues: TcxLookAndFeelValues); override;
-{$IFDEF DELPHIBERLIN}
-    procedure ChangeScale(M, D: Integer; isDpiChange: Boolean); override;
-{$ELSE}
-    procedure ChangeScale(M, D: Integer); override;
-{$ENDIF}
+
+
     procedure PaintChanged;
 {$ENDIF}
     function CalcPageCount: Integer;
@@ -373,7 +374,6 @@ begin
   RegisterComponents('DataPager', [TDevDataPager]);
 end;
 
-
 function GetScreenClient(Control: TControl): TPoint;
 var
   p: TPoint;
@@ -390,7 +390,13 @@ begin
   Result := ALookAndFeel.Painter;
   if ALookAndFeel.SkinPainter = nil then
   begin
-    Result := cxLookAndFeelPaintersManager.GetPainter(lfsSkin);
+    if Result.LookAndFeelStyle = lfsOffice11 then
+    begin
+      if AreVisualStylesAvailable(totButton) then
+        Result := cxLookAndFeelPaintersManager.GetPainter(lfsNative)
+      else
+        Result := cxLookAndFeelPaintersManager.GetPainter(lfsStandard);
+    end;
   end;
 end;
 {$ELSE}
@@ -429,7 +435,7 @@ begin
     begin
       FPainting := False;
       DrawControl(Canvas);
-      FPainting := True;
+      FPainting := true;
     end;
   end;
 end;
@@ -925,7 +931,7 @@ begin
   FPageSizePopup.Items.Clear;
   for I := 0 to Length(PageSize_ARR) - 1 do
   begin
-    APageSize := StrToIntDef( PageSize_ARR[I],10);
+    APageSize := StrToIntDef(PageSize_ARR[I], 10);
     AItem := TMenuItem.Create(FPageSizePopup);
     AItem.Caption := Format(FLabels.LabelPageSize, [APageSize]);
     AItem.Tag := APageSize;
@@ -1085,18 +1091,7 @@ begin
 end;
 
 {$IFDEF DevGDIPlus}
-{$IFDEF DELPHIBERLIN}
 
-procedure TCustomDevDataPager.ChangeScale(M, D: Integer; isDpiChange: Boolean);
-{$ELSE}
-
-procedure TCustomDevDataPager.ChangeScale(M, D: Integer);
-{$ENDIF}
-begin
-  ScaleFactor.Change(M, D);
-  inherited;
-  LookAndFeel.Refresh;
-end;
 
 function TCustomDevDataPager.GetLookAndFeel: TcxLookAndFeel;
 begin
@@ -1110,7 +1105,7 @@ end;
 
 function TCustomDevDataPager.IsUseSkin: Boolean;
 begin
-  Result := (not LookAndFeel.NativeStyle) and (LookAndFeel.Kind = lfUltraFlat);
+  Result := (not LookAndFeel.NativeStyle) and (LookAndFeel.Kind = lfUltraFlat) and (LookAndFeel.SkinPainter <> nil);
 end;
 
 procedure TCustomDevDataPager.LookAndFeelChanged(Sender: TcxLookAndFeel; AChangedValues: TcxLookAndFeelValues);
@@ -1442,19 +1437,19 @@ const
     begin
       if FPageNum.ToString.Equals(AElementInfo.Caption) then
       begin
-        Painter.DrawButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsPressed, true);
+        Painter.DrawScaledButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsPressed, ScaleFactor, true);
       end
       else
       begin
         if FHoverElement = AElementInfo then
-          Painter.DrawButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsHot, true)
+          Painter.DrawScaledButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsHot, ScaleFactor, true)
         else
-          Painter.DrawButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsNormal, true);
+          Painter.DrawScaledButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsNormal, ScaleFactor, true);
       end;
     end
     else
     begin
-      Painter.DrawButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsDisabled, true);
+      Painter.DrawScaledButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsDisabled, ScaleFactor, true);
     end;
 
   end;
@@ -1496,7 +1491,6 @@ const
     ABrush := TdxGPBrush.Create;
     ABrush.Color := TdxAlphaColors.FromColor(ABrushColor);
     try
-
       ARect.Width := ARect.Width - DropDownButtonWidth;
       AGraphics.RoundRect(ARect, APen, ABrush, 0, 0);
     finally
