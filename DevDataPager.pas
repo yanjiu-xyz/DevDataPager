@@ -553,7 +553,7 @@ begin
   FBackgroundColor := clWhite;
   FFrameWidth := 1;
   FElementHeight := 25;
-  FElementMinWidth:=25;
+  FElementMinWidth := 25;
   FShowOKButton := true;
   FPageSizeSet := '10,20,30,40,50,100,150';
 end;
@@ -944,7 +944,7 @@ begin
     FPageSizePopup := TPopupMenu.Create(Self);
     FPageSizePopup.AutoHotkeys := maManual;
   end;
-  PageSize_ARR := FDataPagerSetting.PageSizeSet.Split([',',';']);
+  PageSize_ARR := FDataPagerSetting.PageSizeSet.Split([',', ';']);
   FPageSizePopup.Items.Clear;
   for I := 0 to Length(PageSize_ARR) - 1 do
   begin
@@ -1931,6 +1931,7 @@ begin
   if AElementInfo <> nil then
   begin
     AElementInfo.Caption := ALabel;
+     TCustomDevDataPager(FOwner).Prepare;
   end;
 end;
 
