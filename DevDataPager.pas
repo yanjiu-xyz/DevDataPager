@@ -761,7 +761,7 @@ begin
   case AControlType of
     ctLabelRecordCount:
       begin
-        AElementInfo^.OffSet := 10;
+        AElementInfo^.OffSet := 4;
         ARect.Left := ARect.Left + AElementInfo^.OffSet;
         if FRecordCount = 0 then
           AWidth := RecordCountWidth
@@ -794,12 +794,12 @@ begin
     ctGoPageLabelR:
       begin
         AElementInfo^.OffSet := 0;
-        ARect.Left := ARect.Left + AElementInfo^.OffSet  ;
+        ARect.Left := ARect.Left + AElementInfo^.OffSet;
         AWidth := AWidth - 10 + 4
       end;
     ctPageSize:
       begin
-        AElementInfo^.OffSet := 10;
+        AElementInfo^.OffSet := 4;
         ARect.Left := ARect.Left + AElementInfo^.OffSet;
         if FRecordCount = 0 then
           AWidth := PageSizeWidth + DropDownButtonWidth
@@ -1700,10 +1700,13 @@ begin
       AddElement(ctGoPageLabelR, FLabels.LabelGoPageR, False);
       if FDataPagerSetting.ShowOKButton then
         AddElement(ctGoPageOk, FLabels.LabelGoPageOK, False);
+      AddElement(ctLabelRecordCount, Format(FLabels.LabelRecordCount, [RecordCount]), False);
       AddElement(ctPageSize, Format(FLabels.LabelPageSize, [PageSize]), true);
+    end
+    else
+    begin
+      AddElement(ctLabelRecordCount, Format(FLabels.LabelRecordCount, [RecordCount]), False);
     end;
-    AddElement(ctLabelRecordCount, Format(FLabels.LabelRecordCount, [RecordCount]), False);
-
     if RecordCount > 0 then
       AdjustPageNum;
   finally
