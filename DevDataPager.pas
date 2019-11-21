@@ -22,6 +22,7 @@
 {
   beta 版本
   初始版本提交
+
   ===================
 
   + 增加 Dev依赖编译指令，默认为关闭状态,在Defs.inc文件取消注释即可
@@ -30,6 +31,27 @@
   * 调整了部分属性名称
   ===================
 
+  2019.10.29
+
+  * 修复 记录总数为0时鼠标移到控件时出错误
+  + 增加 内部控件的文本属性
+  * 优化 分页操作的逻辑
+  * 调整 公布GetElementWidth方法
+
+  ===================
+  2019.10.31
+
+  * 修正 切换页面时刷新问题
+  * 修正 使用Dev皮肤时出错的问题
+  + 增加 内部控件最小宽度
+
+  ===================
+  2019.11.21
+
+  + 增加 分页下拉选项中增加全部 (注意:只有当前页码大于1页时,才会显示全部)
+  * 修正 指定每页大小时页码框中数值不变
+  * 修正 页码框位置问题
+  * 调整 字符资源resourcestring
 }
 
 {$IF RTLVersion>=31}// Berlin 及以上版本
@@ -126,9 +148,11 @@ type
     FOnPriorPage: TOnPageNumEvent;
     FOnGoPage: TOnPageNumEvent;
     FOnPageSize: TOnPageSizeEvent;
+    FOnQueryAll: TNotifyEvent;
 {$IFDEF DevGDIPlus}
     FLookAndFeel: TcxLookAndFeel;
 {$ENDIF}
+    FCanShowAll: Boolean;
     procedure SetPageNum(const Value: Integer);
     procedure SetPageSize(const Value: Integer);
     procedure SetRecordCount(const Value: Integer);
@@ -171,7 +195,8 @@ type
     procedure PaintChanged;
 {$ENDIF}
     function CalcPageCount: Integer;
-    procedure AdjustPageNum;
+    procedure AdjustPageNum; overload;
+    procedure AdjustPageNum(AElementInfo: PElementInfo); overload;
     procedure SetPageSizeList;
     function PageNumEdit: TPageNumEdit;
 
@@ -202,7 +227,7 @@ type
     property OnPriorPage: TOnPageNumEvent read FOnPriorPage write FOnPriorPage;
     property OnNextPage: TOnPageNumEvent read FOnNextPage write FOnNextPage;
     property OnPageSize: TOnPageSizeEvent read FOnPageSize write FOnPageSize;
-
+    property OnQueryAll: TNotifyEvent read FOnQueryAll write FOnQueryAll;
   end;
 
   TDataPagerSetting = class(TPersistent)
@@ -224,6 +249,7 @@ type
     FActiveFont: TFont;
     FLabelFont: TFont;
     FElementMinWidth: Integer;
+    FShowAll: Boolean;
     procedure SetActiveColor(const Value: TColor);
     procedure SetDefaultColor(const Value: TColor);
     procedure SetDownColor(const Value: TColor);
@@ -241,6 +267,7 @@ type
     procedure SetActiveFont(const Value: TFont);
     procedure SetLabelFont(const Value: TFont);
     procedure SetElementMinWidth(const Value: Integer);
+    procedure SetShowAll(const Value: Boolean);
   public
     constructor Create(AOwner: TComponent);
     destructor Destroy; override;
@@ -264,7 +291,8 @@ type
     property LabelFont: TFont read FLabelFont write SetLabelFont;
     property ElementMinWidth: Integer read FElementMinWidth write SetElementMinWidth default 25;
 
-    property ShowOKButton: Boolean read FShowOKButton write SetShowOKButton default true;
+    property ShowOKButton: Boolean read FShowOKButton write SetShowOKButton default True;
+    property ShowAll: Boolean read FShowAll write SetShowAll default False;
   end;
 
   TPagerLabels = class(TPersistent)
@@ -280,6 +308,7 @@ type
     FLabelGoPageOK: String;
     FLabelGoPageL: String;
     FLabelFirstPage: String;
+    FLabelShowAll: String;
     procedure SetLabelLabelEllipsis(const Value: String);
     procedure SetLabelLabelFirstPage(const Value: String);
     procedure SetLabelLabelGoPageL(const Value: String);
@@ -290,6 +319,7 @@ type
     procedure SetLabelLabelPageSize(const Value: String);
     procedure SetLabelLabelPriorPage(const Value: String);
     procedure SetLabelRecordCount(const Value: String);
+    procedure SetLabelShowAll(const Value: String);
 
   public
     constructor Create(AOwner: TComponent);
@@ -308,9 +338,8 @@ type
     property LabelGoPageOK: String read FLabelGoPageOK write SetLabelLabelGoPageOK;
     property LabelGoPageL: String read FLabelGoPageL write SetLabelLabelGoPageL;
     property LabelGoPageR: String read FLabelGoPageR write SetLabelLabelGoPageR;
-
     property LabelEllipsis: String read FLabelEllipsis write SetLabelLabelEllipsis;
-
+    property LabelShowAll: String read FLabelShowAll write SetLabelShowAll;
   end;
 
   TPageNumEdit = class(TCustomEdit)
@@ -337,7 +366,7 @@ type
     property Align;
     property Anchors;
     property Enabled;
-    property DoubleBuffered default true;
+    property DoubleBuffered default True;
 {$IFDEF DevGDIPlus}
     property LookAndFeel;
 {$ENDIF}
@@ -364,11 +393,25 @@ type
     property OnPriorPage;
     property OnNextPage;
     property OnPageSize;
+    property OnQueryAll;
   end;
 
 procedure Register;
 
 implementation
+
+resourcestring
+  __DefaultLabelNextPage = '下一页';
+  __DefaultLabelRecordCount = '共 %d 条记录';
+  __DefaultLabelLastPage = '末页';
+  __DefaultLabelGoPageR = '页';
+  __DefaultLabelEllipsis = '...';
+  __DefaultLabelPriorPage = '上一页';
+  __DefaultLabelPageSize = '%d条/页';
+  __DefaultLabelGoPageOK = '确定';
+  __DefaultLabelGoPageL = '到第';
+  __DefaultLabelFirstPage = '首页';
+  __DefaultLabelShowAll = '全部';
 
 procedure Register;
 begin
@@ -405,14 +448,14 @@ end;
 
 procedure TCustomControlEx.PaintChanged;
 begin
-  FPainting := true;
+  FPainting := True;
   Invalidate;
 end;
 
 constructor TCustomControlEx.Create(AOwner: TComponent);
 begin
   inherited;
-  FPainting := true;
+  FPainting := True;
 end;
 
 destructor TCustomControlEx.Destroy;
@@ -429,14 +472,14 @@ end;
 procedure TCustomControlEx.Paint;
 begin
   if (csDesigning in ComponentState) then
-    FPainting := true;
+    FPainting := True;
   if ((Self.Width > 1) and (Self.Height > 1)) then
   begin
     if FPainting then
     begin
       FPainting := False;
       DrawControl(Canvas);
-      FPainting := true;
+      FPainting := True;
     end;
   end;
 end;
@@ -554,7 +597,8 @@ begin
   FFrameWidth := 1;
   FElementHeight := 25;
   FElementMinWidth := 25;
-  FShowOKButton := true;
+  FShowOKButton := True;
+  FShowAll := False;
   FPageSizeSet := '10,20,30,40,50,100,150';
 end;
 
@@ -731,6 +775,19 @@ begin
   end;
 end;
 
+procedure TDataPagerSetting.SetShowAll(const Value: Boolean);
+begin
+  if Value <> FShowAll then
+  begin
+    FShowAll := Value;
+    if FOwner is TCustomDevDataPager then
+    begin
+      TCustomDevDataPager(FOwner).Prepare;
+      TCustomDevDataPager(FOwner).PaintChanged;
+    end;
+  end;
+end;
+
 { TCustomDevDataPager }
 
 procedure TCustomDevDataPager.AddElement(AControlType: TControlType; ACaption: string; AEnabled: Boolean;
@@ -801,10 +858,17 @@ begin
       begin
         AElementInfo^.OffSet := 4;
         ARect.Left := ARect.Left + AElementInfo^.OffSet;
-        if FRecordCount = 0 then
-          AWidth := PageSizeWidth + DropDownButtonWidth
+        if (FDataPagerSetting.ShowAll) and (FCanShowAll) then
+        begin
+          AWidth := Canvas.TextWidth(FLabels.LabelShowAll) + 8 + DropDownButtonWidth;
+        end
         else
-          AWidth := Max(PageSizeWidth, Canvas.TextWidth(ACaption) + 8) + DropDownButtonWidth;
+        begin
+          if FRecordCount = 0 then
+            AWidth := PageSizeWidth + DropDownButtonWidth
+          else
+            AWidth := Max(PageSizeWidth, Canvas.TextWidth(ACaption) + 8) + DropDownButtonWidth;
+        end;
       end;
     ctEllipsis:
       begin
@@ -817,9 +881,9 @@ begin
   AElementInfo^.Rect := ARect;
   AElementInfo^.Value := AValue;
   AElementInfo^.Caption := ACaption;
-  AElementInfo^.Showing := true;
+  AElementInfo^.Showing := True;
   AElementInfo^.ControlType := AControlType;
-  AElementInfo^.Showing := true;
+  AElementInfo^.Showing := True;
   FControlList.Add(AElementInfo);
 end;
 
@@ -828,14 +892,12 @@ var
   I: Integer;
   AElementInfo: PElementInfo;
 begin
-
   for I := 0 to FControlList.Count - 1 do
   begin
     AElementInfo := PElementInfo(FControlList.Items[I]);
     if AElementInfo.ControlType = ctGoPage then
     begin
       { R := AElementInfo.Rect;
-
         FPageNumEdit.Width := R.Width;
         FPageNumEdit.Height := GoPageHeight;
         FPageNumEdit.Left := R.Left;
@@ -844,8 +906,38 @@ begin
         if not FPageNumEdit.Visible then
         FPageNumEdit.Visible := RecordCount > 0;
       }
+      AdjustPageNum(AElementInfo);
       Break;
     end;
+  end;
+end;
+
+procedure TCustomDevDataPager.AdjustPageNum(AElementInfo: PElementInfo);
+var
+  AGoRect: TRect;
+begin
+  if AElementInfo = nil then
+    exit;
+
+  if AElementInfo.ControlType = ctGoPage then
+  begin
+    { R := AElementInfo.Rect;
+
+      FPageNumEdit.Width := R.Width;
+      FPageNumEdit.Height := GoPageHeight;
+      FPageNumEdit.Left := R.Left;
+      FPageNumEdit.Top := R.Top;
+      FPageNumEdit.Value := PageNum;
+      if not FPageNumEdit.Visible then
+      FPageNumEdit.Visible := RecordCount > 0;
+    }
+    AGoRect := AElementInfo.Rect;
+    InflateRect(AGoRect, -1, -1);
+    PageNumEdit.Width := AGoRect.Width - 2;
+    PageNumEdit.Height := AGoRect.Height - 2;
+    PageNumEdit.Left := AGoRect.Left + 1;
+    PageNumEdit.Top := AGoRect.Top + 2;
+    PageNumEdit.Visible := RecordCount > 0;
   end;
 end;
 
@@ -916,10 +1008,11 @@ begin
 
   FPageNum := 1;
   FPageSize := 50;
+  FCanShowAll := False;
 
   Color := clWhite;
 
-  DoubleBuffered := true;
+  DoubleBuffered := True;
 
   FDataPagerSetting := TDataPagerSetting.Create(Self);
   FLabels := TPagerLabels.Create(Self);
@@ -942,7 +1035,7 @@ begin
   if FPageSizePopup = nil then
   begin
     FPageSizePopup := TPopupMenu.Create(Self);
-    FPageSizePopup.AutoHotkeys := maManual;
+    FPageSizePopup.AutoHotkeys := maAutomatic;
   end;
   PageSize_ARR := FDataPagerSetting.PageSizeSet.Split([',', ';']);
   FPageSizePopup.Items.Clear;
@@ -952,9 +1045,31 @@ begin
     AItem := TMenuItem.Create(FPageSizePopup);
     AItem.Caption := Format(FLabels.LabelPageSize, [APageSize]);
     AItem.Tag := APageSize;
+    AItem.GroupIndex := 99;
+    AItem.RadioItem := True;
+    if AItem.Tag = PageSize then
+      AItem.Checked := True;
     AItem.OnClick := DoPageSizeChange;
     FPageSizePopup.Items.Add(AItem);
   end;
+  if (FDataPagerSetting.ShowAll) and (PageCount > 1) then
+  begin
+    AItem := TMenuItem.Create(FPageSizePopup);
+    AItem.Caption := '-';
+
+    FPageSizePopup.Items.Add(AItem);
+    AItem := TMenuItem.Create(FPageSizePopup);
+    AItem.Caption := FLabels.LabelShowAll;
+    AItem.Tag := RecordCount;
+    AItem.GroupIndex := 99;
+    AItem.RadioItem := True;
+    if AItem.Tag = PageSize then
+      AItem.Checked := True;
+    AItem.OnClick := DoPageSizeChange;
+    FPageSizePopup.Items.Add(AItem);
+
+  end;
+
 end;
 
 destructor TCustomDevDataPager.Destroy;
@@ -1003,6 +1118,7 @@ begin
         if Assigned(FOnNextPage) then
           FOnNextPage(Self, PageNum);
       end;
+
     ctGoPageOk:
       begin
         APageNum := PageNumEdit.Value;
@@ -1041,9 +1157,24 @@ var
   AItem: TMenuItem;
 begin
   AItem := TMenuItem(Sender);
-  PageSize := AItem.Tag;
-  if Assigned(FOnPageSize) then
-    FOnPageSize(Self, PageSize);
+  AItem.Checked := True;
+
+  if Pos(FLabels.LabelShowAll, AItem.Caption) > 0 then
+  begin
+    FCanShowAll := True;
+    FPageNum := 1;
+    PageSize := AItem.Tag;
+    if Assigned(FOnQueryAll) then
+      FOnQueryAll(Self);
+  end
+  else
+  begin
+    FCanShowAll := False;
+    FPageNum := 1;
+    PageSize := AItem.Tag;
+    if Assigned(FOnPageSize) then
+      FOnPageSize(Self, PageSize);
+  end;
 end;
 
 procedure TCustomDevDataPager.DrawDropDownButton(ACanvas: TCanvas; R: TRect; AFrameColor: TColor; ABrushColor: TColor);
@@ -1154,7 +1285,7 @@ end;
 procedure TCustomDevDataPager.MouseMove(Shift: TShiftState; X, Y: Integer);
 var
   CursorPos: TPoint;
-  R, TmpRect, AGoRect: TRect;
+  R, TmpRect: TRect;
   I: Integer;
   AElementInfo: PElementInfo;
 begin
@@ -1178,13 +1309,7 @@ begin
 
           if AElementInfo.ControlType = ctGoPage then
           begin
-            AGoRect := AElementInfo.Rect;
-            InflateRect(AGoRect, -1, -1);
-            PageNumEdit.Width := AGoRect.Width - 2;
-            PageNumEdit.Height := AGoRect.Height - 2;
-            PageNumEdit.Left := AGoRect.Left + 1;
-            PageNumEdit.Top := AGoRect.Top + 2;
-            PageNumEdit.Visible := RecordCount > 0;
+            AdjustPageNum(AElementInfo);
           end
           else
           begin
@@ -1249,6 +1374,7 @@ begin
     PageNumEdit.Text := CalcPageCount.ToString;
     PageNumEdit.SelectAll;
   end;
+  AdjustPageNum;
   ChangeButtonOK;
 end;
 
@@ -1328,7 +1454,14 @@ const
     AText := AElementInfo.Caption;
     ARect := AElementInfo.Rect;
     if AElementInfo.ControlType = ctPageSize then
+    begin
+      if (FDataPagerSetting.ShowAll) and FCanShowAll then
+      begin
+        AText := FLabels.LabelShowAll;
+      end;
       ARect.Width := ARect.Width - DropDownButtonWidth;
+
+    end;
 
     // LabelFont
 
@@ -1453,19 +1586,19 @@ const
     begin
       if FPageNum.ToString.Equals(AElementInfo.Caption) then
       begin
-        Painter.DrawScaledButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsPressed, ScaleFactor, true);
+        Painter.DrawScaledButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsPressed, ScaleFactor, True);
       end
       else
       begin
         if FHoverElement = AElementInfo then
-          Painter.DrawScaledButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsHot, ScaleFactor, true)
+          Painter.DrawScaledButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsHot, ScaleFactor, True)
         else
-          Painter.DrawScaledButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsNormal, ScaleFactor, true);
+          Painter.DrawScaledButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsNormal, ScaleFactor, True);
       end;
     end
     else
     begin
-      Painter.DrawScaledButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsDisabled, ScaleFactor, true);
+      Painter.DrawScaledButton(ACanvas, AElementInfo.Rect, AElementInfo.Caption, cxbsDisabled, ScaleFactor, True);
     end;
 
   end;
@@ -1615,14 +1748,14 @@ begin
       end
       else
       begin
-        AddElement(ctPriorPage, FLabels.LabelPriorPage, true);
+        AddElement(ctPriorPage, FLabels.LabelPriorPage, True);
       end;
 
       if APageCount <= 9 then
       begin
         for I := 1 to APageCount do
         begin
-          AddElement(ctPageNum, I.ToString, true, I);
+          AddElement(ctPageNum, I.ToString, True, I);
         end;
       end
       else
@@ -1631,21 +1764,21 @@ begin
         begin
           for I := 1 to 1 do
           begin
-            AddElement(ctPageNum, I.ToString, true, I);
+            AddElement(ctPageNum, I.ToString, True, I);
           end;
 
           if (PageNum - 2) = 2 then
-            AddElement(ctPageNum, '2', true, 2)
+            AddElement(ctPageNum, '2', True, 2)
           else
             AddElement(ctEllipsis, FLabels.LabelEllipsis, False);
 
           for I := PageNum - 1 to PageNum + 1 do
           begin
-            AddElement(ctPageNum, I.ToString, true, I);
+            AddElement(ctPageNum, I.ToString, True, I);
           end;
 
           if (PageNum + 2) = APageCount - 1 then
-            AddElement(ctPageNum, IntToStr(PageNum + 2), true, PageNum + 2)
+            AddElement(ctPageNum, IntToStr(PageNum + 2), True, PageNum + 2)
           else
           begin
             if (PageNum + 2) <> APageCount then
@@ -1654,7 +1787,7 @@ begin
 
           for I := APageCount to APageCount do
           begin
-            AddElement(ctPageNum, I.ToString, true, I);
+            AddElement(ctPageNum, I.ToString, True, I);
           end;
         end
         else
@@ -1663,14 +1796,14 @@ begin
           begin
             for I := 1 to 1 do
             begin
-              AddElement(ctPageNum, I.ToString, true, I);
+              AddElement(ctPageNum, I.ToString, True, I);
             end;
           end
           else
           begin
             for I := 1 to 5 do
             begin
-              AddElement(ctPageNum, I.ToString, true, I);
+              AddElement(ctPageNum, I.ToString, True, I);
             end;
           end;
 
@@ -1679,34 +1812,39 @@ begin
           begin
             for I := APageCount - 4 to APageCount do
             begin
-              AddElement(ctPageNum, I.ToString, true, I);
+              AddElement(ctPageNum, I.ToString, True, I);
             end;
           end
           else
           begin
             for I := APageCount to APageCount do
             begin
-              AddElement(ctPageNum, I.ToString, true, I);
+              AddElement(ctPageNum, I.ToString, True, I);
             end;
           end;
         end;
       end;
+
       if (FPageNum = APageCount) then
         AddElement(ctNextPage, FLabels.LabelNextPage, False)
       else
-        AddElement(ctNextPage, FLabels.LabelNextPage, true);
+        AddElement(ctNextPage, FLabels.LabelNextPage, True);
       AddElement(ctGoPageLabelL, FLabels.LabelGoPageL, False);
-      AddElement(ctGoPage, FPageNum.ToString, true);
+      AddElement(ctGoPage, FPageNum.ToString, True);
       AddElement(ctGoPageLabelR, FLabels.LabelGoPageR, False);
       if FDataPagerSetting.ShowOKButton then
         AddElement(ctGoPageOk, FLabels.LabelGoPageOK, False);
       AddElement(ctLabelRecordCount, Format(FLabels.LabelRecordCount, [RecordCount]), False);
-      AddElement(ctPageSize, Format(FLabels.LabelPageSize, [PageSize]), true);
+      if FCanShowAll then
+        AddElement(ctPageSize, FLabels.LabelShowAll, True)
+      else
+        AddElement(ctPageSize, Format(FLabels.LabelPageSize, [PageSize]), True);
     end
     else
     begin
       AddElement(ctLabelRecordCount, Format(FLabels.LabelRecordCount, [RecordCount]), False);
     end;
+
     if RecordCount > 0 then
       AdjustPageNum;
   finally
@@ -1750,6 +1888,7 @@ begin
     if (OldPageNum <> FPageNum) and Assigned(FOnPageNumEvent) then
       FOnPageNumEvent(Self);
     PageNumEdit.Value := FPageNum;
+    // FPageNumEdit.Left
     ChangeButtonOK;
     PaintChanged;
   end;
@@ -1785,6 +1924,8 @@ begin
 end;
 
 procedure TCustomDevDataPager.SetRecordCount(const Value: Integer);
+var
+  FPageCount: Integer;
 begin
   if Value <> FRecordCount then
   begin
@@ -1792,22 +1933,26 @@ begin
     begin
       FRecordCount := 0;
       FPageNum := 1;
+
       if FPageNumEdit <> nil then
         FreeAndNil(FPageNumEdit);
     end
     else
     begin
       FRecordCount := Value;
-      if CalcPageCount > 0 then
+      FPageCount := CalcPageCount;
+      if FPageCount > 0 then
       begin
-        if FPageNum > CalcPageCount then
+        if FPageNum > FPageCount then
         begin
-          FPageNum := CalcPageCount;
+          FPageNum := FPageCount;
         end;
       end
       else
         FPageNum := 1;
+
     end;
+
     Prepare;
     PaintChanged;
   end;
@@ -1892,6 +2037,7 @@ begin
     LabelGoPageOK := TPagerLabels(Source).LabelGoPageOK;
     FLabelGoPageL := TPagerLabels(Source).FLabelGoPageL;
     FLabelFirstPage := TPagerLabels(Source).FLabelFirstPage;
+    FLabelShowAll := TPagerLabels(Source).FLabelShowAll;
   end;
 end;
 
@@ -1900,16 +2046,17 @@ begin
   inherited Create;
   FOwner := AOwner;
 
-  FLabelNextPage := '下一页';
-  FLabelRecordCount := '共 %d 条记录';
-  FLabelLastPage := '末页';
-  FLabelGoPageR := '页';
-  FLabelEllipsis := '...';
-  FLabelPriorPage := '上一页';
-  FLabelPageSize := '%d条/页';
-  LabelGoPageOK := '确定';
-  FLabelGoPageL := '到第';
-  FLabelFirstPage := '首页';
+  FLabelNextPage := __DefaultLabelNextPage;
+  FLabelRecordCount := __DefaultLabelRecordCount;
+  FLabelLastPage := __DefaultLabelLastPage;
+  FLabelGoPageR := __DefaultLabelGoPageR;
+  FLabelEllipsis := __DefaultLabelEllipsis;
+  FLabelPriorPage := __DefaultLabelPriorPage;
+  FLabelPageSize := __DefaultLabelPageSize;
+  FLabelGoPageOK := __DefaultLabelGoPageOK;
+  FLabelGoPageL := __DefaultLabelGoPageL;
+  FLabelFirstPage := __DefaultLabelFirstPage;
+  FLabelShowAll := __DefaultLabelShowAll;
 end;
 
 destructor TPagerLabels.Destroy;
@@ -2013,7 +2160,10 @@ begin
   if FLabelPageSize <> Value then
   begin
     FLabelPageSize := Value;
-    ModifyElement(ctPageSize, Format(FLabelPageSize, [TCustomDevDataPager(FOwner).PageSize]));
+    if TCustomDevDataPager(FOwner).FCanShowAll then
+      ModifyElement(ctPageSize, FLabelShowAll)
+    else
+      ModifyElement(ctPageSize, Format(FLabelPageSize, [TCustomDevDataPager(FOwner).PageSize]));
     DoRePaint;
   end;
 end;
@@ -2035,6 +2185,14 @@ begin
     FLabelRecordCount := Value;
     ModifyElement(ctLabelRecordCount, Format(FLabelRecordCount, [TCustomDevDataPager(FOwner).RecordCount]));
     DoRePaint;
+  end;
+end;
+
+procedure TPagerLabels.SetLabelShowAll(const Value: String);
+begin
+  if FLabelShowAll <> Value then
+  begin
+    FLabelShowAll := Value;
   end;
 end;
 
