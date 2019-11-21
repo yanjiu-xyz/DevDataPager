@@ -39,11 +39,21 @@
   * 调整 公布GetElementWidth方法 
 
   ===================  
+  
    2019.10.31
 
   * 修正 切换页面时刷新问题
   * 修正 使用Dev皮肤时出错的问题
   + 增加 内部控件最小宽度
+  
+    ===================
+    
+   2019.11.21
+  
+  + 增加 分页下拉选项中增加全部 (注意:只有当前页码大于1页时,才会显示全部)
+  * 修正 指定每页大小时页码框中数值不变
+  * 修正 页码框位置问题
+  * 调整 字符资源到resourcestring
   
   运行效果图 
   ![image](https://github.com/yanjiu-xyz/DevDataPager/blob/master/DevDataPager.png)
