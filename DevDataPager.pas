@@ -177,6 +177,12 @@ type
     procedure DrawButtonArrow(ACanvas: TCanvas; const R: TRect; AColor: TColor); virtual;
     procedure DrawDropDownButton(ACanvas: TCanvas; R: TRect; AFrameColor: TColor; ABrushColor: TColor);
 
+    {$IFDEF DevGDIPlus}
+    {$IFDEF Dev20PlusFix}
+    function GetBackgroundStyle: TcxControlBackgroundStyle; override;
+    {$ENDIF}
+    {$ENDIF}
+
     procedure MouseDown(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
     procedure MouseMove(Shift: TShiftState; X, Y: Integer); override;
     procedure MouseUp(Button: TMouseButton; Shift: TShiftState; X, Y: Integer); override;
@@ -1206,6 +1212,18 @@ begin
   end;
 end;
 
+{$IFDEF DevGDIPlus}
+{$IFDEF Dev20PlusFix}
+function TCustomDevDataPager.GetBackgroundStyle: TcxControlBackgroundStyle;
+begin
+  if IsTransparentBackground then
+    Result := bgTransparent
+  else
+    Result := bgOpaque;
+end;
+{$ENDIF}
+{$ENDIF}
+
 function TCustomDevDataPager.GetElement(AControlType: TControlType): PElementInfo;
 var
   I: Integer;
@@ -1420,7 +1438,7 @@ begin
     AGraphics.SmoothingMode := smAntiAlias;
     if IsUseSkin then
     begin
-      Color := Painter.DefaultContentColor;
+      Color :=Painter.DefaultContentColor;
     end
     else
     begin
