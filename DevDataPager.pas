@@ -52,6 +52,15 @@
   * 修正 指定每页大小时页码框中数值不变
   * 修正 页码框位置问题
   * 调整 字符资源到resourcestring
+
+  2020.11.5
+  
+  * 修正 在Dev20.1.x时黑底
+
+  ===================
+  2020.11.20
+
+  + 增加 AutoWidth属性，自动宽度 [感谢 围墙(qq:412252480)的提交]
 }
 
 {$IF RTLVersion>=31}// Berlin 及以上版本
@@ -153,9 +162,11 @@ type
     FLookAndFeel: TcxLookAndFeel;
 {$ENDIF}
     FCanShowAll: Boolean;
+    FAutoWidth: Boolean;
     procedure SetPageNum(const Value: Integer);
     procedure SetPageSize(const Value: Integer);
     procedure SetRecordCount(const Value: Integer);
+    procedure SetAutoWidth(const Value: Boolean);
 
     procedure CMMouseLeave(var Message: TMessage); message CM_MOUSELEAVE;
     procedure CMMouseEnter(var Message: TMessage); message CM_MOUSEENTER;
@@ -218,6 +229,7 @@ type
     /// <returns></returns>
     function GetElementWidth: Integer;
 
+    property AutoWidth: Boolean read FAutoWidth write SetAutoWidth default False;
 {$IFDEF DevGDIPlus}
     property Painter: TcxCustomLookAndFeelPainter read GetPainter;
     property LookAndFeel: TcxLookAndFeel read FLookAndFeel write SetLookAndFeel;
@@ -371,6 +383,7 @@ type
   published
     property Align;
     property Anchors;
+    property AutoWidth;
     property Enabled;
     property DoubleBuffered default True;
 {$IFDEF DevGDIPlus}
@@ -1865,6 +1878,8 @@ begin
 
     if RecordCount > 0 then
       AdjustPageNum;
+    if FAutoWidth and (Align in [alNone,alLeft,alRight]) then
+      Width := GetElementWidth + 4;
   finally
     Font := OldFont;
   end;
@@ -1877,6 +1892,18 @@ begin
     exit;
   Prepare;
   PaintChanged;
+end;
+
+procedure TCustomDevDataPager.SetAutoWidth(const Value: Boolean);
+begin
+  if FAutoWidth <> Value then
+  begin
+    FAutoWidth := Value;
+    if FAutoWidth then
+    begin
+      Resize;
+    end;
+  end;
 end;
 
 procedure TCustomDevDataPager.SetPageNum(const Value: Integer);
