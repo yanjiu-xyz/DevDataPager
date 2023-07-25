@@ -540,9 +540,8 @@ begin
     MemDC := CreateCompatibleDC(DC);
     try
       OldBitmap := SelectObject(MemDC, MemBitmap.Handle);
-      // PerformEraseBackground(self, MemDC);
-      // MemBitmap.Canvas.Brush.Color := BackgroundColor;
-      MemBitmap.Canvas.Brush.Color := clRed;
+       PerformEraseBackground(self, MemDC);
+       MemBitmap.Canvas.Brush.Color := BackgroundColor;
       MemBitmap.Canvas.FillRect(ClientRect);
       Message.DC := MemDC;
       WMPaint(Message);
