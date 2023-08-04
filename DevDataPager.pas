@@ -1244,6 +1244,7 @@ begin
     FCanShowAll := True;
     FPageNum := 1;
     PageSize := AItem.Tag;
+    PageNumEdit.Value := FPageNum;
     if Assigned(FOnQueryAll) then
       FOnQueryAll(self);
   end
@@ -1252,6 +1253,7 @@ begin
     FCanShowAll := False;
     FPageNum := 1;
     PageSize := AItem.Tag;
+    PageNumEdit.Value := FPageNum;
     if Assigned(FOnPageSize) then
       FOnPageSize(self, PageSize);
   end;
